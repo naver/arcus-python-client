@@ -6,14 +6,14 @@ This is a python3 client driver for Arcus cloud.
 ## Requirement
 
 This driver is made by python 3.0 
-and it use kazoo module to handle zookeeper. Install kazoo first: https://kazoo.readthedocs.org
+and it uses kazoo module to handle zookeeper. Install kazoo first: https://kazoo.readthedocs.org
 
 ## Use
 
 Just import arcus.py and arcus_mc_node.py.
 test.py is basic functional test for this driver and you can get detail information about that.
 
-Visit arcus cache clout project at github to get more detail information.
+Visit arcus cache cloud project at github to get more detail information.
 https://github.com/naver/arcus
 
 
