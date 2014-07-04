@@ -14,7 +14,7 @@ Just import arcus.py and arcus_mc_node.py.
 test.py is basic functional test for this driver and you can get detail information about that.
 
 Visit arcus cache clout project at github to get more detail information.
-https://github.com/naver/arcus-cache-cloud
+https://github.com/naver/arcus
 
 
 ## License
