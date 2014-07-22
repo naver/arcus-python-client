@@ -190,12 +190,8 @@ class ArcusMCNode:
 	def replace(self, key, val, exptime=0):
 		return self._set("replace", key, val, exptime)
 
-	def delete(self, key, exptime=0):
-		if exptime != None and exptime != 0:
-			full_cmd = "delete %s %d" % (key, exptime)
-		else:
-			full_cmd = "delete %s" % key
-
+	def delete(self, key):
+		full_cmd = "delete %s" % key
 		return self.add_op('delete', bytes(full_cmd, 'utf-8'), self._recv_delete)
 
 	def flush_all(self):
