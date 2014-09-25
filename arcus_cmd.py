@@ -81,6 +81,7 @@ def do_arcus_command(ip, port, command):
 if __name__ == '__main__':
 	usage = "usage: %prog [options]"
 	parser = OptionParser(usage=usage, version="%prog 1.0")
+	parser.add_option('-f', '--file', dest='file', default='', help='zookeeper address lists file')
 	parser.add_option('-a', '--address', dest='address', default='', help='zookeeper address')
 	parser.add_option('-s', '--service', dest='service', default='', help='service code')
 	parser.add_option('-c', '--command', dest='command', default='', help='command')
@@ -94,12 +95,28 @@ if __name__ == '__main__':
 		print('-s(--service) and -n(--node) is exclusive')
 		exit()
 
-	if options.service:
-		lists = get_arcus_node_list(options.address, options.service)
-	elif options.node:
-		lists = get_arcus_service_list(options.address, options.node)
+	if options.file:
+		fh = open(options.file)
+		addresses = fh.readlines()
 	else:
-		lists = get_arcus_node_list(options.address, '') # print all cache_list
+		addresses = [options.address]
+
+
+	for address in addresses:
+		try:
+			if options.service:
+				lists = get_arcus_node_list(address, options.service)
+			elif options.node:
+				lists = get_arcus_service_list(address, options.node)
+			else:
+				lists = get_arcus_node_list(address, '') # print all cache_list
+
+		except Exception as e:
+			# not found
+			continue
+
+		print ('## Zookeeper address %s' % address)
+		break
 
 
 	lists.sort()
