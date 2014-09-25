@@ -121,16 +121,26 @@ if __name__ == '__main__':
 				
 
 	if options.memory:
-		print('===============================================================')
-		do_ssh_command(lists[0][0], 'free')
+		if options.node:
+			print('===============================================================')
+			print ('[%s] system memory' % lists[0][0]);
+			do_ssh_command(lists[0][0], 'free') # run once
+			print('---------------------------------------------------------------')
 
-		print('---------------------------------------------------------------')
 
 		re_limit = re.compile("STAT limit_maxbytes ([0-9]+)")
 		re_bytes = re.compile("STAT bytes ([0-9]+)")
 
+		last_node = None
 		for node in lists:
 			try:
+				if options.service and last_node != node[0]:
+					print('===============================================================')
+					print ('[%s] system memory' % node[0]);
+					do_ssh_command(node[0], 'free') # run every server
+					last_node = node[0]
+					print('---------------------------------------------------------------')
+
 				result = do_arcus_command(node[0], node[1], 'stats\n')
 
 				m_limit = re_limit.search(result)
