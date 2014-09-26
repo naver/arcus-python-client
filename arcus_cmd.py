@@ -19,85 +19,17 @@
  
 
 import sys
-import telnetlib
 import re
-import socket
 
-from kazoo.client import KazooClient
-import kazoo
 from optparse import OptionParser
 import paramiko
 
+from arcus_util import zookeeper
+from arcus_util import arcus_node
 
-lists = []
+from kazoo.client import KazooClient
+import kazoo
 
-
-class arcus_node:
-	def __init__(self, ip, port, name, code):
-		self.ip = ip
-		self.port = port 
-		self.name = name
-		self.code = code
-
-	def __repr__(self):
-		if self.name and self.code:
-			return '[%s:%s-(%s,%s)]' % (self.ip, self.port, self.name, self.code)
-		elif self.name:
-			return '[%s:%s-(%s)]' % (self.ip, self.port, self.name)
-		elif self.code:
-			return '[%s:%s-(%s)]' % (self.ip, self.port, self.code)
-
-		return '[%s:%s]' % (self.ip, self.port)
-
-	def do_arcus_command(self, command):
-		tn = telnetlib.Telnet(self.ip, self.port)
-		tn.write(bytes(command + '\n', 'utf-8'))
-		result = tn.read_until(bytes('END', 'utf-8'))
-		result = result.decode('utf-8');
-		tn.write(bytes('quit\n', 'utf-8'))
-		tn.close()
-		return result;
-
-
-class zookeeper:
-	def __init__(self, address):
-		self.address = address
-		self.zk = KazooClient(address)
-		self.zk.start()
-
-	def get_arcus_cache_list(self):
-		children = self.zk.get_children('/arcus/cache_list/')
-		return children
-
-	def get_arcus_node_of_code(self, code, server):
-		children = self.zk.get_children('/arcus/cache_list/' + code)
-
-		ret = []
-		for child in children:
-			addr, name = child.split('-')
-			ip, port = addr.split(':')
-
-			if server != '' and (server != ip and server != name):
-				continue # skip this
-
-			node = arcus_node(ip, port, name, None)
-			ret.append(node)
-
-		return ret
-
-
-	def get_arcus_node_of_server(self, addr):
-		ip = socket.gethostbyname(addr)
-		children = self.zk.get_children('/arcus/cache_server_mapping/')
-
-		ret = []
-		for child in children:
-			l = len(ip)
-			if child[:l] == ip:
-				code = self.zk.get_children('/arcus/cache_server_mapping/' + child)
-				ip, port = child.split(':')
-				ret.append(arcus_node(ip, port, None, code[0]))
-		return ret
 
 
 def do_ssh_command(addr, command):
@@ -130,30 +62,35 @@ if __name__ == '__main__':
 	else:
 		addresses = [options.address]
 
+	lists = []
 
 	for address in addresses:
 		try:
-			print ('\n\n## Zookeeper address %s' % address)
 			zoo = zookeeper(address)
 
 			if options.service:
-				lists = zoo.get_arcus_node_of_code(options.service, options.node)
+				list = zoo.get_arcus_node_of_code(options.service, options.node)
+				if len(list) > 0:
+					print ('\n\n## Zookeeper address %s' % address)
 			elif options.node:
-				lists = zoo.get_arcus_node_of_server(options.node)
+				list = zoo.get_arcus_node_of_server(options.node)
+				if len(list) > 0:
+					print ('\n\n## Zookeeper address %s' % address)
 			else:
-				lists = zoo.get_arcus_cache_list()
-				print (lists)
+				print ('\n\n## Zookeeper address %s' % address)
+				list = zoo.get_arcus_cache_list()
+				print (list)
+				list = []
 				continue
 
-		except Exception as e:
-			print(e)
+		except kazoo.exceptions.NoNodeError:
 			# not found
 			continue
 
-		break
+		lists = lists + list
 
 
-	lists.sort(key = lambda x: x.ip+x.port)
+	lists.sort(key = lambda x: x.ip + ":" + x.port)
 	for node in lists:
 		print(node)
 
