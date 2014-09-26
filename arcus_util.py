@@ -173,13 +173,6 @@ class zookeeper:
 
 		
 		
-if __name__ == '__main__':
-	#zoo = zookeeper('krc-01.arcuscloud.nhncorp.com:17288')
-	zoo = zookeeper('gasan.arcuscloud.nhncorp.com:17288')
-	zoo.load_all()
-	print(zoo)
-			
-			
 
 
 
