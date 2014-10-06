@@ -114,7 +114,13 @@ class zookeeper:
 			l = len(ip)
 			if child[:l] == ip:
 				code = self.zk.get_children('/arcus/cache_server_mapping/' + child)
-				ip, port = child.split(':')
+				try:
+					ip, port = child.split(':')
+				except ValueError:
+					print('cache_server_mapping ValueError: %s' % child)
+					ip = child
+					port = '0'
+
 				node = arcus_node(ip, port)
 				node.code = code[0]
 				ret.append(node)
@@ -131,7 +137,8 @@ class zookeeper:
 				ip, port = child.split(':')
 			except ValueError:
 				print('cache_server_mapping ValueError: %s' % child)
-				continue
+				ip = child
+				port = '0'
 
 			node = arcus_node(ip, port)
 			node.code = code[0]

@@ -52,6 +52,7 @@ if __name__ == '__main__':
 	parser.add_option('-c', '--command', dest='command', default='', help='arcus command')
 	parser.add_option('-n', '--node', dest='node', default='', help='node address or ip')
 	parser.add_option('-x', '--ssh_command', dest='ssh_command', default='', help='ssh command execution')
+	parser.add_option('', '--ssh_command_file', dest='ssh_command_file', default='', help='ssh command execution from file')
 	parser.add_option('-i', '--i', dest='info', default=False, help='memory, maxconns info', action='store_true')
 
 	(options, args) = parser.parse_args()
@@ -65,6 +66,12 @@ if __name__ == '__main__':
 	lists = []
 
 	for address in addresses:
+		if address[0] == '#':
+			continue
+		
+		if address.strip() == '':
+			continue
+
 		try:
 			zoo = zookeeper(address)
 
@@ -94,12 +101,21 @@ if __name__ == '__main__':
 	for node in lists:
 		print(node)
 
-	if options.ssh_command:
-		do_ssh_command(lists[0].ip, options.ssh_command)
+	if options.ssh_command_file:
+		fh = open(options.ssh_command_file)
+		options.ssh_command = fh.read()
 
+	if options.ssh_command:
+		prev_ip = ''
+		for node in lists:
+			if prev_ip != node.ip: # run once per machine
+				print ('## run ssh command, [%s] %s' % (node.ip, options.ssh_command))
+				do_ssh_command(node.ip, options.ssh_command)
+				prev_ip = node.ip
 
 	if options.command:
 		for node in lists:
+
 			try:
 				result = node.do_arcus_command(options.command)
 				print ('%s\t\t%s - %s' % (node, options.command, result))
