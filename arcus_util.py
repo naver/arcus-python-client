@@ -21,6 +21,7 @@ import socket
 
 from kazoo.client import KazooClient
 import kazoo
+from kazoo.exceptions import *
 
 
 class arcus_cache:
@@ -59,7 +60,13 @@ class arcus_node:
 	def do_arcus_command(self, command):
 		tn = telnetlib.Telnet(self.ip, self.port)
 		tn.write(bytes(command + '\n', 'utf-8'))
-		result = tn.read_until(bytes('END', 'utf-8'))
+
+		if command[0:5] == 'scrub' or command[0:5] == 'flush':
+			result = tn.read_until(bytes('OK', 'utf-8'))
+		else:
+			result = tn.read_until(bytes('END', 'utf-8'))
+
+
 		result = result.decode('utf-8');
 		tn.write(bytes('quit\n', 'utf-8'))
 		tn.close()
@@ -75,6 +82,8 @@ class zookeeper:
 		self.arcus_cache_map = {} 
 		self.arcus_node_map = {}
 
+		self.force = False
+
 	def __repr__(self):
 		repr = '[ZooKeeper: %s]' % (self.address)
 
@@ -82,7 +91,48 @@ class zookeeper:
 			repr = '%s\n\n%s' % (repr, cache)
 
 		return repr
+
+	def set_force(self):
+		self.force = True
+
+	def zk_read(self, path):
+		data, stat = self.zk.get(path)
+		children = self.zk.get_children(path)
+		return data, stat, children
+	
+	def zk_exists(self, path):
+		if self.zk.exists(path) == None:
+			return False
+
+		return True
+
+	def zk_create(self, path, value):
+		try:
+			self.zk.create(path, bytes(value, 'utf-8'))
+		except NodeExistsError:
+			if self.force == False:
+				raise NodeExistsError
 		
+	def zk_delete(self, path):
+		try:
+			self.zk.delete(path)
+		except NoNodeError:
+			if self.force == False:
+				raise NoNodeError
+		
+	def zk_delete_tree(self, path):
+		try:
+			self.zk.delete(path, recursive=True)
+		except NoNodeError:
+			if self.force == False:
+				raise NoNodeError
+
+	def zk_update(self, path, value):
+		try:
+			self.zk.set(path, bytes(value, 'utf-8'))
+		except NoNodeError:
+			if self.force == False:
+				raise NoNodeError
 
 	def get_arcus_cache_list(self):
 		children = self.zk.get_children('/arcus/cache_list/')

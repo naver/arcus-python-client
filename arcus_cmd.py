@@ -18,7 +18,7 @@
 #
  
 
-import sys
+import sys,os
 import re
 
 from optparse import OptionParser
@@ -54,6 +54,7 @@ if __name__ == '__main__':
 	parser.add_option('-x', '--ssh_command', dest='ssh_command', default='', help='ssh command execution')
 	parser.add_option('', '--ssh_command_file', dest='ssh_command_file', default='', help='ssh command execution from file')
 	parser.add_option('-i', '--i', dest='info', default=False, help='memory, maxconns info', action='store_true')
+	parser.add_option('', '--dump_script', dest='dump_script', default=False, help='dump start script', action='store_true')
 
 	(options, args) = parser.parse_args()
 
@@ -90,6 +91,11 @@ if __name__ == '__main__':
 				list = []
 				continue
 
+			if options.dump_script: # record zookeeper address
+				for node in list:
+					node.zk_addr = address
+				
+
 		except kazoo.exceptions.NoNodeError:
 			# not found
 			continue
@@ -124,7 +130,7 @@ if __name__ == '__main__':
 				print(e)
 				
 
-	if options.info:
+	if options.info or options.dump_script:
 		if options.node:
 			print('===================================================================================')
 			print ('[%s] system memory' % lists[0].ip);
@@ -138,9 +144,16 @@ if __name__ == '__main__':
 		re_maxconns = re.compile("maxconns ([0-9]+)")
 
 		last_node = None
+
+		total_used = 0
+		total_limit = 0
 		for node in lists:
 			try:
 				if options.service and last_node != node.ip:
+					if last_node != None:
+						print ('TOTAL MEM: (%d/%d) %f%%' % (total_used, total_limit, total_used/total_limit*100))
+						total_used = total_limit = 0
+
 					print('===================================================================================')
 					print ('[%s] system memory' % node.ip);
 					do_ssh_command(node.ip, 'free') # run every server
@@ -165,10 +178,27 @@ if __name__ == '__main__':
 				maxconns = int(m_maxconns.groups()[0])
 
 				print ('%s\t\tMEM: (%d/%d) %f%%, CONN: (%d/%d)' % (node, used, limit, used/limit*100, curr_conn, maxconns))
+				total_used = total_used + used;
+				total_limit = total_limit + limit;
 
 			except Exception as e:
 				print ('%s\t\tFAILED!!' % (node))
 				print(e)
+
+			if options.dump_script:
+				file_name = 'start_mem_%s.sh' % node.code
+				script_fh = open(file_name, 'a')
+				if os.path.getsize(file_name) == 0:
+					script_fh.write('#!/bin/bash\n')
+					os.chmod(file_name, 0o755)
+
+				start_script = '/home1/irteam/apps/arcus/arcus/bin/memcached -v -o 60 -r -m%d -R5 -p %s -d -c %d -U 0 -D: -b 8192 -u irteam -t 6 -E /home1/irteam/apps/arcus/arcus/lib/default_engine.so -X /home1/irteam/apps/arcus/arcus/lib/syslog_logger.so -X /home1/irteam/apps/arcus/arcus/lib/ascii_scrub.so -z %s\n' % (limit, node.port, maxconns, node.zk_addr)
+
+				script_fh.write(start_script)
+				
+				
+
+		print ('TOTAL MEM: (%d/%d) %f%%' % (total_used, total_limit, total_used/total_limit*100))
 		print('===================================================================================')
 
 
