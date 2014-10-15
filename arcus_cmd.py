@@ -18,8 +18,7 @@
 #
  
 
-import sys,os
-import re
+import sys,os,socket,re
 
 from optparse import OptionParser
 import paramiko
@@ -55,6 +54,7 @@ if __name__ == '__main__':
 	parser.add_option('', '--ssh_command_file', dest='ssh_command_file', default='', help='ssh command execution from file')
 	parser.add_option('-i', '--i', dest='info', default=False, help='memory, maxconns info', action='store_true')
 	parser.add_option('', '--dump_script', dest='dump_script', default=False, help='dump start script', action='store_true')
+	parser.add_option('', '--vpn_remap', dest='vpn_remap', default='', help='read ip remap file for vpn network')
 
 	(options, args) = parser.parse_args()
 
@@ -64,16 +64,32 @@ if __name__ == '__main__':
 	else:
 		addresses = [options.address]
 
+	remap = {}
+	if options.vpn_remap:
+		fh = open(options.vpn_remap)
+		lines = fh.readlines()
+		for line in lines:
+			if line.strip() == '' or line[0] == '#':
+				continue
+		
+			fr, to = line.split()
+			remap[fr] = to
+
 	lists = []
 
 	for address in addresses:
-		if address[0] == '#':
+		if address.strip() == '' or address[0] == '#':
 			continue
 		
-		if address.strip() == '':
-			continue
 
 		try:
+			if len(remap) > 0:
+				addr, port = address.split(':')
+				ip = socket.gethostbyname(addr)
+				if ip in remap:
+					print('## zookeeper ip remap %s -> %s for address %s' % (ip, remap[ip], addr))
+					address = '%s:%s' % (remap[ip], port)
+				
 			zoo = zookeeper(address)
 
 			if options.service:
@@ -105,6 +121,10 @@ if __name__ == '__main__':
 
 	lists.sort(key = lambda x: x.ip + ":" + x.port)
 	for node in lists:
+		if node.ip in remap:
+			print('## vpn remap %s -> %s' % (node.ip, remap[node.ip]))
+			node.ip = remap[node.ip]
+			
 		print(node)
 
 	if options.ssh_command_file:
