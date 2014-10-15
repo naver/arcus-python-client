@@ -38,6 +38,7 @@ if __name__ == '__main__':
 	parser.add_option('-a', '--address', dest='address', default='', help='zookeeper address')
 	parser.add_option('-s', '--service', dest='service', default='', help='service code')
 	parser.add_option('-n', '--node', dest='node', default='', help='node address:port')
+	parser.add_option('', '--name', dest='name', default='', help='node domain name')
 	parser.add_option('-c', '--command', dest='command', default='', help='add_service | del_service | add_node | del_node')
 	parser.add_option('-f', '--force', dest='force', default=False, help='ignore exception', action='store_true')
 
@@ -57,7 +58,9 @@ if __name__ == '__main__':
 		port = ''
 
 	ip = socket.gethostbyname(name)
-	
+
+	if options.name != '':
+		name = options.name
 
 
 	zoo = zookeeper(address)
@@ -72,6 +75,10 @@ if __name__ == '__main__':
 		print ('create /arcus/cache_list')
 		zoo.zk_create('/arcus/cache_list', 'cache_list')
 
+	if zoo.zk_exists('/arcus/client_list') == False:
+		print ('create /arcus/client_list')
+		zoo.zk_create('/arcus/client_list', 'client_list')
+
 	if zoo.zk_exists('/arcus/cache_server_mapping') == False:
 		print ('create /arcus/cache_server_mapping')
 		zoo.zk_create('/arcus/cache_server_mapping', 'cache_server_mapping')
@@ -85,6 +92,9 @@ if __name__ == '__main__':
 		if command == 'add_service' and service:
 			print ('add /arcus/cache_list/' + service)
 			zoo.zk_create('/arcus/cache_list/' + service, 'arcus1.8')
+
+			print ('add /arcus/client_list/' + service)
+			zoo.zk_create('/arcus/client_list/' + service, 'arcus1.8')
 
 			print ('add /arcus/service_code_mapping/' + service)
 			zoo.zk_create('/arcus/service_code_mapping/' + service, 'arcus1.8')
@@ -102,6 +112,10 @@ if __name__ == '__main__':
 				ret = '/arcus/cache_server_mapping/' + child
 				print ('delete node %s' % ret)
 				zoo.zk_delete_tree(ret)
+
+			print ('delete /arcus/client_list/' + service)
+			zoo.zk_delete_tree('/arcus/client_list/' + service)
+
 
 		elif command == 'add_node' and service and node:
 			assert port != ''

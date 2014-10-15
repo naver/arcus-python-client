@@ -62,9 +62,9 @@ class arcus_node:
 		tn.write(bytes(command + '\n', 'utf-8'))
 
 		if command[0:5] == 'scrub' or command[0:5] == 'flush':
-			result = tn.read_until(bytes('OK', 'utf-8'))
+			result = tn.read_until(bytes('OK', 'utf-8'), 0.2)
 		else:
-			result = tn.read_until(bytes('END', 'utf-8'))
+			result = tn.read_until(bytes('END', 'utf-8'), 0.2)
 
 
 		result = result.decode('utf-8');
