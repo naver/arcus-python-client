@@ -100,9 +100,6 @@ if __name__ == '__main__':
 			zoo.zk_create('/arcus/service_code_mapping/' + service, 'arcus1.8')
 
 		elif command == 'del_service' and service:
-			print ('delete /arcus/cache_list/' + service)
-			zoo.zk_delete_tree('/arcus/cache_list/' + service)
-
 			data, stat, children = zoo.zk_read('/arcus/service_code_mapping/' + service)
 
 			print ('delete /arcus/service_code_mapping/' + service)

@@ -55,6 +55,8 @@ if __name__ == '__main__':
 	parser.add_option('-i', '--i', dest='info', default=False, help='memory, maxconns info', action='store_true')
 	parser.add_option('', '--dump_script', dest='dump_script', default=False, help='dump start script', action='store_true')
 	parser.add_option('', '--vpn_remap', dest='vpn_remap', default='', help='read ip remap file for vpn network')
+	parser.add_option('', '--all_node', dest='all_node', default=False, help='select all node', action='store_true')
+	parser.add_option('', '--all_server', dest='all_server', default=False, help='select all server', action='store_true')
 
 	(options, args) = parser.parse_args()
 
@@ -92,6 +94,7 @@ if __name__ == '__main__':
 				
 			zoo = zookeeper(address)
 
+			list = []
 			if options.service:
 				list = zoo.get_arcus_node_of_code(options.service, options.node)
 				if len(list) > 0:
@@ -100,6 +103,21 @@ if __name__ == '__main__':
 				list = zoo.get_arcus_node_of_server(options.node)
 				if len(list) > 0:
 					print ('\n\n## Zookeeper address %s' % address)
+			elif options.all_node:
+				cache_list = zoo.get_arcus_cache_list()
+				for cache in cache_list:
+					list += zoo.get_arcus_node_of_code(cache, options.node)
+			elif options.all_server:
+				cache_list = zoo.get_arcus_cache_list()
+				ip_map = {}
+				for cache in cache_list:
+					tmp = zoo.get_arcus_node_of_code(cache, options.node)
+					for t in tmp:
+						ip_map[t.ip] = True
+						
+				for k in ip_map:
+					list.append(arcus_node(k, '*'))
+				
 			else:
 				print ('\n\n## Zookeeper address %s' % address)
 				list = zoo.get_arcus_cache_list()
@@ -188,14 +206,19 @@ if __name__ == '__main__':
 				result = node.do_arcus_command('config maxconns')
 				m_maxconns = re_maxconns.search(result)
 
-				if m_limit == None or m_bytes == None or m_maxconns == None or m_curr_conn == None:
+				#if m_limit == None or m_bytes == None or m_maxconns == None or m_curr_conn == None: # 1.6 not support maxconns
+				if m_limit == None or m_bytes == None or m_curr_conn == None:
 					print ('%s\t\tstats failed!!' % (node))
 					continue
 				
 				limit = int(m_limit.groups()[0]) / 1024 /  1024
 				used = int(m_bytes.groups()[0]) / 1024 / 1024
 				curr_conn = int(m_curr_conn.groups()[0])
-				maxconns = int(m_maxconns.groups()[0])
+
+				if m_maxconns == None:
+					maxconns = 10000
+				else:
+					maxconns = int(m_maxconns.groups()[0])
 
 				print ('%s\t\tMEM: (%d/%d) %f%%, CONN: (%d/%d)' % (node, used, limit, used/limit*100, curr_conn, maxconns))
 				total_used = total_used + used;
