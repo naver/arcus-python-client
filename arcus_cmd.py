@@ -167,8 +167,7 @@ if __name__ == '__main__':
 				print ('%s\t\tFAILED!!' % (node))
 				print(e)
 				
-
-	if options.info or options.dump_script:
+	if options.info:
 		if options.node:
 			print('===================================================================================')
 			print ('[%s] system memory' % lists[0].ip);
@@ -227,21 +226,63 @@ if __name__ == '__main__':
 			except Exception as e:
 				print ('%s\t\tFAILED!!' % (node))
 				print(e)
-
-			if options.dump_script:
-				file_name = 'start_mem_%s.sh' % node.code
-				script_fh = open(file_name, 'a')
-				if os.path.getsize(file_name) == 0:
-					script_fh.write('#!/bin/bash\n')
-					os.chmod(file_name, 0o755)
-
-				start_script = '/home1/irteam/apps/arcus/arcus/bin/memcached -v -o 60 -r -m%d -R5 -p %s -d -c %d -U 0 -D: -b 8192 -u irteam -t 6 -E /home1/irteam/apps/arcus/arcus/lib/default_engine.so -X /home1/irteam/apps/arcus/arcus/lib/syslog_logger.so -X /home1/irteam/apps/arcus/arcus/lib/ascii_scrub.so -z %s\n' % (limit, node.port, maxconns, node.zk_addr)
-
-				script_fh.write(start_script)
-				
+				continue
 				
 
 		print ('TOTAL MEM: (%d/%d) %f%%' % (total_used, total_limit, total_used/total_limit*100))
 		print('===================================================================================')
 
+
+
+	if options.dump_script:
+		re_limit = re.compile("STAT limit_maxbytes ([0-9]+)")
+		re_bytes = re.compile("STAT bytes ([0-9]+)")
+		re_curr_conn = re.compile("STAT curr_connections ([0-9]+)")
+		re_maxconns = re.compile("maxconns ([0-9]+)")
+
+		last_node = None
+
+		total_used = 0
+		total_limit = 0
+		for node in lists:
+			try:
+				result = node.do_arcus_command('stats')
+				m_limit = re_limit.search(result)
+				m_bytes = re_bytes.search(result)
+				m_curr_conn = re_curr_conn.search(result)
+
+				result = node.do_arcus_command('config maxconns')
+				m_maxconns = re_maxconns.search(result)
+
+				#if m_limit == None or m_bytes == None or m_maxconns == None or m_curr_conn == None: # 1.6 not support maxconns
+				if m_limit == None or m_bytes == None or m_curr_conn == None:
+					print ('%s\t\tstats failed!!' % (node))
+					continue
+				
+				limit = int(m_limit.groups()[0]) / 1024 /  1024
+				used = int(m_bytes.groups()[0]) / 1024 / 1024
+				curr_conn = int(m_curr_conn.groups()[0])
+
+				if m_maxconns == None:
+					maxconns = 10000
+				else:
+					maxconns = int(m_maxconns.groups()[0])
+
+				total_used = total_used + used;
+				total_limit = total_limit + limit;
+
+			except Exception as e:
+				print ('%s\t\tFAILED!!' % (node))
+				print(e)
+				continue
+
+			file_name = 'start_mem_%s.sh' % node.code
+			script_fh = open(file_name, 'w')
+			if os.path.getsize(file_name) == 0:
+				script_fh.write('#!/bin/bash\n')
+				os.chmod(file_name, 0o755)
+
+			start_script = '/home1/irteam/apps/arcus/arcus/bin/memcached -v -o 60 -r -m%d -R5 -p %s -d -c %d -U 0 -D: -b 8192 -u irteam -t 6 -E /home1/irteam/apps/arcus/arcus/lib/default_engine.so -X /home1/irteam/apps/arcus/arcus/lib/syslog_logger.so -X /home1/irteam/apps/arcus/arcus/lib/ascii_scrub.so -z %s\n' % (limit, node.port, maxconns, node.zk_addr)
+
+			script_fh.write(start_script)
 
