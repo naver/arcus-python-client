@@ -30,6 +30,11 @@ from kazoo.client import KazooClient
 import kazoo
 
 
+# set below environment for dump_script
+HOME_DIR=''
+USER=''
+
+
 
 def do_ssh_command(addr, command):
 	ssh = paramiko.SSHClient()
@@ -282,7 +287,7 @@ if __name__ == '__main__':
 				script_fh.write('#!/bin/bash\n')
 				os.chmod(file_name, 0o755)
 
-			start_script = '/home1/irteam/apps/arcus/arcus/bin/memcached -v -o 60 -r -m%d -R5 -p %s -d -c %d -U 0 -D: -b 8192 -u irteam -t 6 -E /home1/irteam/apps/arcus/arcus/lib/default_engine.so -X /home1/irteam/apps/arcus/arcus/lib/syslog_logger.so -X /home1/irteam/apps/arcus/arcus/lib/ascii_scrub.so -z %s\n' % (limit, node.port, maxconns, node.zk_addr)
+			start_script = '%s/bin/memcached -v -o 60 -r -m%d -R5 -p %s -d -c %d -U 0 -D: -b 8192 -u %s -t 6 -E %s/lib/default_engine.so -X %s/lib/syslog_logger.so -X %s/lib/ascii_scrub.so -z %s\n' % (HOME_DIR, limit, node.port, maxconns, USER, HOME_DIR, HOME_DIR, HOME_DIR, node.zk_addr)
 
 			script_fh.write(start_script)
 
