@@ -844,13 +844,13 @@ class ArcusList:
 			if isinstance(index, slice):
 				start = index.start
 				stop = index.stop
-				if stop != None:
+				if stop:
 					stop -= 1
+				else:
+					stop = -1
 
 				if start == None:
 					start = 0
-				if stop == None:
-					stop = -1
 
 				try: 
 					return self.arcus.lop_get(self.key, (start, stop)).get_result()
@@ -874,13 +874,15 @@ class ArcusList:
 		if isinstance(index, slice):
 			start = index.start
 			stop = index.stop
-			if stop != None:
+			
+			if stop:
 				stop -= 1
-
+			else:
+				stop = -1
+				
 			if start == None:
 				start = 0
-			if stop == None:
-				stop = -1
+				
 			return self.arcus.lop_delete(self.key, (start, stop)).get_result()
 		else:
 			return self.arcus.lop_delete(self.key, index).get_result()
@@ -960,12 +962,10 @@ class ArcusSet:
 
 	def __iter__(self):
 		if self.cache != None:
-			if time.time() < self.next_refresh:
-				return iter(self.cache)
-			else:
+			if time.time() >= self.next_refresh:
 				self.cache = self.arcus.sop_get(self.key).get_result()
 				self.next_refresh = time.time() + self.cache_time
-				return iter(self.cache)
+			return iter(self.cache)
 		else:
 			return iter(self.arcus.sop_get(self.key).get_result())
 			
@@ -986,12 +986,10 @@ class ArcusSet:
 			
 	def __repr__(self):
 		if self.cache != None:
-			if time.time() < self.next_refresh:
-				return repr(self.cache)
-			else:
+			if time.time() >= self.next_refresh:
 				self.cache = self.arcus.sop_get(self.key).get_result()
 				self.next_refresh = time.time() + self.cache_time
-				return repr(self.cache)
+			return repr(self.cache)
 
 		try:
 			ret = self.arcus.sop_get(self.key).get_result()
