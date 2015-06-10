@@ -4,7 +4,7 @@
 # arcus-python-client - Arcus python client drvier
 # Copyright 2014 NAVER Corp.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
+# Licensed under the Apache License, Version 2.0 (the "License")
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -175,7 +175,7 @@ if __name__ == '__main__':
 	if options.info:
 		if options.node:
 			print('===================================================================================')
-			print ('[%s] system memory' % lists[0].ip);
+			print ('[%s] system memory' % lists[0].ip)
 			do_ssh_command(lists[0].ip, 'free') # run once
 			print('-----------------------------------------------------------------------------------')
 
@@ -197,7 +197,7 @@ if __name__ == '__main__':
 						total_used = total_limit = 0
 
 					print('===================================================================================')
-					print ('[%s] system memory' % node.ip);
+					print ('[%s] system memory' % node.ip)
 					do_ssh_command(node.ip, 'free') # run every server
 					last_node = node.ip
 					print('-----------------------------------------------------------------------------------')
@@ -215,7 +215,7 @@ if __name__ == '__main__':
 					print ('%s\t\tstats failed!!' % (node))
 					continue
 				
-				limit = int(m_limit.groups()[0]) / 1024 /  1024
+				limit = int(m_limit.groups()[0]) / 1024 / 1024
 				used = int(m_bytes.groups()[0]) / 1024 / 1024
 				curr_conn = int(m_curr_conn.groups()[0])
 
@@ -225,8 +225,8 @@ if __name__ == '__main__':
 					maxconns = int(m_maxconns.groups()[0])
 
 				print ('%s\t\tMEM: (%d/%d) %f%%, CONN: (%d/%d)' % (node, used, limit, used/limit*100, curr_conn, maxconns))
-				total_used = total_used + used;
-				total_limit = total_limit + limit;
+				total_used += used
+				total_limit += limit
 
 			except Exception as e:
 				print ('%s\t\tFAILED!!' % (node))
@@ -264,7 +264,7 @@ if __name__ == '__main__':
 					print ('%s\t\tstats failed!!' % (node))
 					continue
 				
-				limit = int(m_limit.groups()[0]) / 1024 /  1024
+				limit = int(m_limit.groups()[0]) / 1024 / 1024
 				used = int(m_bytes.groups()[0]) / 1024 / 1024
 				curr_conn = int(m_curr_conn.groups()[0])
 
@@ -273,8 +273,8 @@ if __name__ == '__main__':
 				else:
 					maxconns = int(m_maxconns.groups()[0])
 
-				total_used = total_used + used;
-				total_limit = total_limit + limit;
+				total_used += used
+				total_limit += limit
 
 			except Exception as e:
 				print ('%s\t\tFAILED!!' % (node))
