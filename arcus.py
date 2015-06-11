@@ -745,100 +745,82 @@ class ArcusList:
 
 	def __len__(self):
 		if self.cache != None:
-			if time.time() < self.next_refresh:
-				return len(self.cache)
-			else:
+			if time.time() >= self.next_refresh:
 				self.cache = self.arcus.lop_get(self.key, (0, -1)).get_result()
 				self.next_refresh = time.time() + self.cache_time
-				return len(self.cache)
+			return len(self.cache)
 		else:
 			return len(self.arcus.lop_get(self.key, (0, -1)).get_result())
 
 	def __iter__(self):
 		if self.cache != None:
-			if time.time() < self.next_refresh:
-				return iter(self.cache)
-			else:
+			if time.time() >= self.next_refresh:
 				self.cache = self.arcus.lop_get(self.key, (0, -1)).get_result()
 				self.next_refresh = time.time() + self.cache_time
-				return iter(self.cache)
+			return iter(self.cache)
 		else:
 			return iter(self.arcus.lop_get(self.key, (0, -1)).get_result())
 
 	def __eq__(self, rhs):
 		if self.cache != None:
-			if time.time() < self.next_refresh:
-				return self.cache == rhs
-			else:
+			if time.time() >= self.next_refresh:
 				self.cache = self.arcus.lop_get(self.key, (0, -1)).get_result()
 				self.next_refresh = time.time() + self.cache_time
-				return self.cache == rhs
+			return self.cache == rhs
 		else:
 			return self.arcus.lop_get(self.key, (0, -1)).get_result() == rhs
 		
 	def __ne__(self, rhs):
 		if self.cache != None:
-			if time.time() < self.next_refresh:
-				return self.cache != rhs
-			else:
+			if time.time() >= self.next_refresh:
 				self.cache = self.arcus.lop_get(self.key, (0, -1)).get_result()
 				self.next_refresh = time.time() + self.cache_time
-				return self.cache != rhs
+			return self.cache != rhs
 		else:
 			return self.arcus.lop_get(self.key, (0, -1)).get_result() != rhs
 
 	def __le__(self, rhs):
 		if self.cache != None:
-			if time.time() < self.next_refresh:
-				return self.cache <= rhs
-			else:
+			if time.time() >= self.next_refresh:
 				self.cache = self.arcus.lop_get(self.key, (0, -1)).get_result()
 				self.next_refresh = time.time() + self.cache_time
-				return self.cache <= rhs
+			return self.cache <= rhs
 		else:
 			return self.arcus.lop_get(self.key, (0, -1)).get_result() <= rhs
 
 	def __lt__(self, rhs):
 		if self.cache != None:
-			if time.time() < self.next_refresh:
-				return self.cache < rhs
-			else:
+			if time.time() >= self.next_refresh:
 				self.cache = self.arcus.lop_get(self.key, (0, -1)).get_result()
 				self.next_refresh = time.time() + self.cache_time
-				return self.cache < rhs
+			return self.cache < rhs
 		else:
 			return self.arcus.lop_get(self.key, (0, -1)).get_result() < rhs
 
 	def __ge__(self, rhs):
 		if self.cache != None:
-			if time.time() < self.next_refresh:
-				return self.cache >= rhs
-			else:
+			if time.time() >= self.next_refresh:
 				self.cache = self.arcus.lop_get(self.key, (0, -1)).get_result()
 				self.next_refresh = time.time() + self.cache_time
-				return self.cache >= rhs
+			return self.cache >= rhs
 		else:
 			return self.arcus.lop_get(self.key, (0, -1)).get_result() >= rhs
 
 	def __gt__(self, rhs):
 		if self.cache != None:
-			if time.time() < self.next_refresh:
-				return self.cache > rhs
-			else:
+			if time.time() >= self.next_refresh:
 				self.cache = self.arcus.lop_get(self.key, (0, -1)).get_result()
 				self.next_refresh = time.time() + self.cache_time
-				return self.cache > rhs
+			return self.cache > rhs
 		else:
 			return self.arcus.lop_get(self.key, (0, -1)).get_result() > rhs
 			
 	def __getitem__(self, index):
 		if self.cache != None:
-			if time.time() < self.next_refresh:
-				return self.cache[index]
-			else:
+			if time.time() >= self.next_refresh:
 				self.cache = self.arcus.lop_get(self.key, (0, -1)).get_result()
 				self.next_refresh = time.time() + self.cache_time
-				return self.cache[index]
+			return self.cache[index]
 		else:
 			if isinstance(index, slice):
 				start = index.start
@@ -907,12 +889,10 @@ class ArcusList:
 			
 	def __repr__(self):
 		if self.cache != None:
-			if time.time() < self.next_refresh:
-				return repr(self.cache)
-			else:
+			if time.time() >= self.next_refresh:
 				self.cache = self.arcus.lop_get(self.key, (0, -1)).get_result()
 				self.next_refresh = time.time() + self.cache_time
-				return repr(self.cache)
+			return repr(self.cache)
 
 		try:
 			ret = self.arcus.lop_get(self.key, (0, -1)).get_result()
@@ -942,12 +922,10 @@ class ArcusSet:
 
 	def __len__(self):
 		if self.cache != None:
-			if time.time() < self.next_refresh:
-				return len(self.cache)
-			else:
+			if time.time() >= self.next_refresh:
 				self.cache = self.arcus.sop_get(self.key).get_result()
 				self.next_refresh = time.time() + self.cache_time
-				return len(self.cache)
+			return len(self.cache)
 		else: 
 			return len(self.arcus.sop_get(self.key).get_result())
 
@@ -959,12 +937,10 @@ class ArcusSet:
 
 	def __iter__(self):
 		if self.cache != None:
-			if time.time() < self.next_refresh:
-				return iter(self.cache)
-			else:
+			if time.time() >= self.next_refresh:
 				self.cache = self.arcus.sop_get(self.key).get_result()
 				self.next_refresh = time.time() + self.cache_time
-				return iter(self.cache)
+			return iter(self.cache)
 		else:
 			return iter(self.arcus.sop_get(self.key).get_result())
 			
@@ -985,12 +961,10 @@ class ArcusSet:
 			
 	def __repr__(self):
 		if self.cache != None:
-			if time.time() < self.next_refresh:
-				return repr(self.cache)
-			else:
+			if time.time() >= self.next_refresh:
 				self.cache = self.arcus.sop_get(self.key).get_result()
 				self.next_refresh = time.time() + self.cache_time
-				return repr(self.cache)
+			return repr(self.cache)
 
 		try:
 			ret = self.arcus.sop_get(self.key).get_result()
