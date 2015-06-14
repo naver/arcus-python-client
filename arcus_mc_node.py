@@ -582,7 +582,7 @@ class ArcusMCNode:
 		if org_cmd == 'bop mget':
 			reply = self._recv_mget
 		else:
-			reply = slef._recv_smget
+			reply = self._recv_smget
 		
 		op = self.add_op(org_cmd, cmd, reply)
 
