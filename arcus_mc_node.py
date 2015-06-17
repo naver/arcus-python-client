@@ -384,7 +384,7 @@ class ArcusMCNode:
 			return(0)
 
 		full_cmd = bytes("%s %s %d %d %d\r\n" % (cmd, key, flags, exptime, len), 'utf-8')
-		full_cmd = full_cmd + value
+		full_cmd += value
 
 		op = self.add_op(cmd, full_cmd, self._recv_set)
 		return op 
@@ -395,7 +395,7 @@ class ArcusMCNode:
 			return(0)
 
 		full_cmd = bytes("%s %s %d %d %d %d\r\n" % (cmd, key, flags, exptime, len, cas_id), 'utf-8')
-		full_cmd = full_cmd + value
+		full_cmd += value
 
 		op = self.add_op(cmd, full_cmd, self._recv_set)
 		return op 
@@ -573,17 +573,18 @@ class ArcusMCNode:
 			cmd += ' ' + filter.get_expr()
 
 		if offset != None:
-			cmd += ' %d %d' % (offset, count)
-		else:
-			cmd += ' %d' % count
+			cmd += ' %d' % offset
+		cmd += ' %d' % count
 
 		cmd += '\r\n%s' % comma_sep_keys
 		cmd = bytes(cmd, 'utf-8')
 
 		if org_cmd == 'bop mget':
-			op = self.add_op(org_cmd, cmd, self._recv_mget)
+			reply = self._recv_mget
 		else:
-			op = self.add_op(org_cmd, cmd, self._recv_smget)
+			reply = slef._recv_smget
+		
+		op = self.add_op(org_cmd, cmd, reply)
 
 		return op 
 
@@ -1060,12 +1061,10 @@ class EflagFilter:
 			
 		# ( dummy, lhs_offset, dummy, bit_op, bit_rhs, comp_op, comp_rhs )
 		g = match.groups()
-		self.lhs_offset = g[1]
-		self.bit_op = g[3]
-		self.bit_rhs = g[4]
-		self.comp_op = g[5]
-		self.comp_rhs = g[6]
-
+		g.remove(g[0]) # ( lhs_offset, dummy, bit_op, bit_rhs, comp_op, comp_rhs )
+		g.remove(g[1]) # ( lhs_offset, bit_op, bit_rhs, comp_op, comp_rhs )
+		self.lhs_offset, self.bit_op, self.bit_rhs, self.comp_op, self.comp_rhs = g
+		
 		if self.lhs_offset == None:
 			self.lhs_offset = 0
 		else:

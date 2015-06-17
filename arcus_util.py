@@ -2,7 +2,7 @@
 # arcus-python-client - Arcus python client drvier
 # Copyright 2014 NAVER Corp.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
+# Licensed under the Apache License, Version 2.0 (the "License")
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -62,15 +62,15 @@ class arcus_node:
 		tn.write(bytes(command + '\n', 'utf-8'))
 
 		if command[0:5] == 'scrub' or command[0:5] == 'flush':
-			result = tn.read_until(bytes('OK', 'utf-8'), timeout)
+			message = 'OK'
 		else:
-			result = tn.read_until(bytes('END', 'utf-8'), timeout)
-
-
-		result = result.decode('utf-8');
+			message = 'END'
+		
+		result = tn.read_until(bytes(message, 'utf-8'), timeout)
+		result = result.decode('utf-8')
 		tn.write(bytes('quit\n', 'utf-8'))
 		tn.close()
-		return result;
+		return result
 
 
 class zookeeper:
@@ -152,7 +152,7 @@ class zookeeper:
 				continue # skip this
 
 			node = arcus_node(ip, port)
-			node.name = name;
+			node.name = name
 			ret.append(node)
 
 		return ret
@@ -170,8 +170,7 @@ class zookeeper:
 					ip, port = child.split(':')
 				except ValueError:
 					print('cache_server_mapping ValueError: %s' % child)
-					ip = child
-					port = '0'
+					ip, port = child, '0'
 
 				node = arcus_node(ip, port)
 				node.code = code[0]
@@ -189,8 +188,7 @@ class zookeeper:
 				ip, port = child.split(':')
 			except ValueError:
 				print('cache_server_mapping ValueError: %s' % child)
-				ip = child
-				port = '0'
+				ip, port = child, '0'
 
 			node = arcus_node(ip, port)
 			node.code = code[0]
@@ -202,12 +200,12 @@ class zookeeper:
 		codes = self.get_arcus_cache_list()
 		for code in codes:
 			cache = arcus_cache(self.address, code)
-			self.arcus_cache_map[code] = cache;
+			self.arcus_cache_map[code] = cache
 
 		nodes = self.get_arcus_node_all()
 
 		for node in nodes:
-			self.arcus_node_map[node.ip + ":" + node.port] = node;
+			self.arcus_node_map[node.ip + ":" + node.port] = node
 			self.arcus_cache_map[node.code].node.append(node)
 
 		for code, cache in self.arcus_cache_map.items():

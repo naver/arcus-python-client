@@ -321,8 +321,7 @@ class ArcusLocator:
 		# update live nodes
 		for child in children:
 			lst = child.split('-')
-			addr = lst[0]
-			name = lst[1]
+			addr, name = lst[:2]
 
 			if addr in self.addr_node_map:
 				self.addr_node_map[addr].in_use = True
