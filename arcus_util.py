@@ -57,14 +57,14 @@ class arcus_node:
 
 		return '[%s:%s]' % (self.ip, self.port)
 
-	def do_arcus_command(self, command):
+	def do_arcus_command(self, command, timeout=0.2):
 		tn = telnetlib.Telnet(self.ip, self.port)
 		tn.write(bytes(command + '\n', 'utf-8'))
 
 		if command[0:5] == 'scrub' or command[0:5] == 'flush':
-			result = tn.read_until(bytes('OK', 'utf-8'), 0.2)
+			result = tn.read_until(bytes('OK', 'utf-8'), timeout)
 		else:
-			result = tn.read_until(bytes('END', 'utf-8'), 0.2)
+			result = tn.read_until(bytes('END', 'utf-8'), timeout)
 
 
 		result = result.decode('utf-8');
@@ -145,8 +145,8 @@ class zookeeper:
 
 		ret = []
 		for child in children:
-			addr, name = child.split('-')
-			ip, port = addr.split(':')
+			addr, name = child.split('-', 1)
+			ip, port = addr.split(':', 1)
 
 			if server != '' and (server != ip and server != name):
 				continue # skip this

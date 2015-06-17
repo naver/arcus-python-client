@@ -62,8 +62,11 @@ if __name__ == '__main__':
 	parser.add_option('', '--vpn_remap', dest='vpn_remap', default='', help='read ip remap file for vpn network')
 	parser.add_option('', '--all_node', dest='all_node', default=False, help='select all node', action='store_true')
 	parser.add_option('', '--all_server', dest='all_server', default=False, help='select all server', action='store_true')
+	parser.add_option('-t', '--timeout', dest='timeout', default='200', help='arcus command timeout (msec)')
 
 	(options, args) = parser.parse_args()
+
+	timeout = int(options.timeout) / 1000
 
 	if options.file:
 		fh = open(options.file)
@@ -82,7 +85,8 @@ if __name__ == '__main__':
 			fr, to = line.split()
 			remap[fr] = to
 
-	lists = []
+	lists = [] # nodes
+	zoo_caches = [] # caches (for cloud brief report)
 
 	for address in addresses:
 		if address.strip() == '' or address[0] == '#':
@@ -97,6 +101,7 @@ if __name__ == '__main__':
 					print('## zookeeper ip remap %s -> %s for address %s' % (ip, remap[ip], addr))
 					address = '%s:%s' % (remap[ip], port)
 				
+			#print(address)
 			zoo = zookeeper(address)
 
 			list = []
@@ -125,10 +130,9 @@ if __name__ == '__main__':
 				
 			else:
 				print ('\n\n## Zookeeper address %s' % address)
-				list = zoo.get_arcus_cache_list()
-				print (list)
-				list = []
-				continue
+				cache = zoo.get_arcus_cache_list()
+				print (cache)
+				zoo_caches.append((zoo, cache))
 
 			if options.dump_script: # record zookeeper address
 				for node in list:
@@ -166,13 +170,13 @@ if __name__ == '__main__':
 		for node in lists:
 
 			try:
-				result = node.do_arcus_command(options.command)
+				result = node.do_arcus_command(options.command, timeout)
 				print ('%s\t\t%s - %s' % (node, options.command, result))
 			except Exception as e:
 				print ('%s\t\tFAILED!!' % (node))
 				print(e)
-				
-	if options.info:
+
+	if options.info and (options.service or options.node):
 		if options.node:
 			print('===================================================================================')
 			print ('[%s] system memory' % lists[0].ip);
@@ -202,12 +206,12 @@ if __name__ == '__main__':
 					last_node = node.ip
 					print('-----------------------------------------------------------------------------------')
 
-				result = node.do_arcus_command('stats')
+				result = node.do_arcus_command('stats', timeout)
 				m_limit = re_limit.search(result)
 				m_bytes = re_bytes.search(result)
 				m_curr_conn = re_curr_conn.search(result)
 
-				result = node.do_arcus_command('config maxconns')
+				result = node.do_arcus_command('config maxconns', timeout)
 				m_maxconns = re_maxconns.search(result)
 
 				#if m_limit == None or m_bytes == None or m_maxconns == None or m_curr_conn == None: # 1.6 not support maxconns
@@ -235,8 +239,78 @@ if __name__ == '__main__':
 				
 
 		print ('TOTAL MEM: (%d/%d) %f%%' % (total_used, total_limit, total_used/total_limit*100))
-		print('===================================================================================')
 
+
+
+	if options.info and not options.service and not options.node: # brief report per cloud
+		grand_total_used = 0
+		grand_total_limit = 0
+		grand_total_instances = 0
+
+		for item in zoo_caches:
+			zoo = item[0]
+			caches = item[1]
+
+			print('===================================================================================')
+			print('## ' + zoo.address)
+			for cache in caches:
+
+				lists = zoo.get_arcus_node_of_code(cache, '')
+
+				re_limit = re.compile("STAT limit_maxbytes ([0-9]+)")
+				re_bytes = re.compile("STAT bytes ([0-9]+)")
+				re_curr_conn = re.compile("STAT curr_connections ([0-9]+)")
+				re_maxconns = re.compile("maxconns ([0-9]+)")
+
+				total_used = 0
+				total_limit = 0
+				for node in lists:
+					try:
+						if node.ip in remap:
+							print('## vpn remap %s -> %s' % (node.ip, remap[node.ip]))
+							node.ip = remap[node.ip]
+
+						result = node.do_arcus_command('stats', timeout)
+						m_limit = re_limit.search(result)
+						m_bytes = re_bytes.search(result)
+						m_curr_conn = re_curr_conn.search(result)
+
+						result = node.do_arcus_command('config maxconns', timeout)
+						m_maxconns = re_maxconns.search(result)
+
+						#if m_limit == None or m_bytes == None or m_maxconns == None or m_curr_conn == None: # 1.6 not support maxconns
+						if m_limit == None or m_bytes == None or m_curr_conn == None:
+							print ('%s\t\tstats failed!!' % (node))
+							continue
+						
+						limit = int(m_limit.groups()[0]) / 1024 /  1024
+						used = int(m_bytes.groups()[0]) / 1024 / 1024
+						curr_conn = int(m_curr_conn.groups()[0])
+
+						if m_maxconns == None:
+							maxconns = 10000
+						else:
+							maxconns = int(m_maxconns.groups()[0])
+
+						total_used = total_used + used;
+						total_limit = total_limit + limit;
+
+					except Exception as e:
+						print ('%s\t\tFAILED!!' % (node))
+						print(e)
+						continue
+						
+
+				#print ('[%s] %d instances, (%d/%d) %f%%' % (cache, len(lists), total_used, total_limit, total_used/total_limit*100))
+				print ('[%s] %d instances, %dM memory' % (cache, len(lists), total_limit))
+				grand_total_limit += total_limit
+				grand_total_used += total_used
+				grand_total_instances += len(lists)
+		
+		
+		#print ('TOTAL %d instances, (%d/%d)M memory' % (grand_total_instances, grand_total_used, grand_total_limit grand_total_used/grand_total_limit*100))
+		print ('TOTAL %d instances, %dM memory' % (grand_total_instances, grand_total_limit))
+				
 
 
 	if options.dump_script:
@@ -251,12 +325,12 @@ if __name__ == '__main__':
 		total_limit = 0
 		for node in lists:
 			try:
-				result = node.do_arcus_command('stats')
+				result = node.do_arcus_command('stats', timeout)
 				m_limit = re_limit.search(result)
 				m_bytes = re_bytes.search(result)
 				m_curr_conn = re_curr_conn.search(result)
 
-				result = node.do_arcus_command('config maxconns')
+				result = node.do_arcus_command('config maxconns', timeout)
 				m_maxconns = re_maxconns.search(result)
 
 				#if m_limit == None or m_bytes == None or m_maxconns == None or m_curr_conn == None: # 1.6 not support maxconns
