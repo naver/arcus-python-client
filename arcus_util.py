@@ -16,7 +16,7 @@
 #
  
 
-import telnetlib
+import telnetlib, os, sys
 import socket
 
 from kazoo.client import KazooClient
@@ -31,6 +31,7 @@ class arcus_cache:
 		self.node = []
 		self.active_node = []
 		self.dead_node = []
+		self.meta = ('', None)
 
 	def __repr__(self):
 		repr = '[Service Code: %s] (zk:%s)\n (node) %s\n (active) %s\n (dead) %s' % (self.code, self.zk_addr, self.node, self.active_node, self.dead_node)
@@ -46,6 +47,8 @@ class arcus_node:
 		self.code = ''
 		self.zk_addr = ''
 		self.active = False
+
+		self.noport = False
 
 	def __repr__(self):
 		if self.name and self.code:
@@ -65,8 +68,9 @@ class arcus_node:
 			message = 'OK'
 		else:
 			message = 'END'
-		
+
 		result = tn.read_until(bytes(message, 'utf-8'), timeout)
+
 		result = result.decode('utf-8')
 		tn.write(bytes('quit\n', 'utf-8'))
 		tn.close()
@@ -83,9 +87,11 @@ class zookeeper:
 		self.arcus_node_map = {}
 
 		self.force = False
+		self.meta = ('', None)
+		self.meta_mtime = None
 
 	def __repr__(self):
-		repr = '[ZooKeeper: %s]' % (self.address)
+		repr = '[ZooKeeper: %s] %s, %s' % (self.address, self.meta[0], str(self.meta[1]))
 
 		for code, cache in self.arcus_cache_map.items():
 			repr = '%s\n\n%s' % (repr, cache)
@@ -121,8 +127,6 @@ class zookeeper:
 				raise NoNodeError
 		
 	def zk_delete_tree(self, path):
-		self.zk.delete(path, recursive=True)
-
 		try:
 			self.zk.delete(path, recursive=True)
 		except NoNodeError:
@@ -169,8 +173,8 @@ class zookeeper:
 				try:
 					ip, port = child.split(':')
 				except ValueError:
-					print('cache_server_mapping ValueError: %s' % child)
-					ip, port = child, '0'
+					print('No port defined in cache_server_mapping: %s' % child)
+					continue
 
 				node = arcus_node(ip, port)
 				node.code = code[0]
@@ -181,14 +185,22 @@ class zookeeper:
 		children = self.zk.get_children('/arcus/cache_server_mapping/')
 
 		ret = []
+
+		#print(children)
 		for child in children:
 			code = self.zk.get_children('/arcus/cache_server_mapping/' + child)
 
 			try:
 				ip, port = child.split(':')
 			except ValueError:
-				print('cache_server_mapping ValueError: %s' % child)
-				ip, port = child, '0'
+				print('No port defined in cache_server_mapping: %s' % child)
+				ip = child
+				port = '0'
+
+			if len(code) == 0:
+				print('no childrens in cache_server_mapping error: %s' % child)
+				print(code)
+				continue
 
 			node = arcus_node(ip, port)
 			node.code = code[0]
@@ -196,17 +208,41 @@ class zookeeper:
 
 		return ret
 
+	def get_arcus_meta_all(self):
+		if self.zk.exists('/arcus/meta') == None:
+			self.zk.create('/arcus/meta', b'arcus meta info')
+
+		children = self.zk.get_children('/arcus/meta')
+
+		ret = {}
+		print('# children')
+		print(children)
+
+		for child in children:
+			data, stat, children = self.zk_read('/arcus/meta/' + child)
+			ret[child] = (data.decode('utf-8'), stat)
+
+		return ret
+
+
 	def load_all(self):
 		codes = self.get_arcus_cache_list()
 		for code in codes:
 			cache = arcus_cache(self.address, code)
 			self.arcus_cache_map[code] = cache
 
+		print('# get_arcus_node_all()')
 		nodes = self.get_arcus_node_all()
+		print('# done')
 
 		for node in nodes:
 			self.arcus_node_map[node.ip + ":" + node.port] = node
 			self.arcus_cache_map[node.code].node.append(node)
+
+		# meta info 
+		print('# get_arcus_meta_all()')
+		meta = self.get_arcus_meta_all()
+		print('# done')
 
 		for code, cache in self.arcus_cache_map.items():
 			children = self.zk.get_children('/arcus/cache_list/' + code)
@@ -216,8 +252,10 @@ class zookeeper:
 				try:
 					node = self.arcus_node_map[addr]
 				except KeyError:
-					print('[%s] active node KeyError: %s' % (code, addr))
-						
+					print('%s of %s is not defined in cache_server_mapping' % (addr, code))
+					ip, port = addr.split(':')
+					node = arcus_node(ip, port)
+					node.noport = True
 			
 				node.active = True
 				cache.active_node.append(node)
@@ -226,7 +264,71 @@ class zookeeper:
 				if node.active == False:
 					cache.dead_node.append(node)
 
+
+			if code in meta:
+				cache.meta = meta[code]
+
+
+		if 'zookeeper' in meta:
+			self.meta = meta['zookeeper']
 			
+
+	def _callback(self, event):
+		child_list = self.zk.get_children(event.path)
+		cloud = os.path.basename(event.path)
+		cache = self.arcus_cache_map[cloud]
+
+		event_list = { 'created':[], 'deleted':[] }
+		current = {}
+		print('##### active node')
+		print(cache.active_node)
+
+		children = []
+		for child in child_list:
+			addr = child.split('-')[0]
+			children.append(addr)
+		
+		print('#### children')
+		print(children)
+
+		for node in cache.active_node:
+			current[node.ip + ':' + node.port] = True
+
+		print('##### current')
+		print(current)
+
+		for node in cache.active_node:
+			addr = node.ip + ':' + node.port
+			if addr not in children:
+				event_list['deleted'].append(addr)
+				cache.active_node.remove(node)
+
+
+		for child in children:
+			if child not in current:
+				event_list['created'].append(child)
+				ip, port = child.split(':')
+				node = arcus_node(ip, port)
+				cache.active_node.append(node)
+
+
+		print('####### result')
+		print(cache.active_node)
+
+		self.callback(event, event_list)
+		children = self.zk.get_children(event.path, watch = self._callback)
+		
+
+	def watch(self, callback):
+		self.callback = callback
+		for code, cache in self.arcus_cache_map.items():
+			children = self.zk.get_children('/arcus/cache_list/' + code, watch=self._callback)
+
+				
+
+				
+
+		
 
 		
 		

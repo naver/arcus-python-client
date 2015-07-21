@@ -64,6 +64,8 @@ if __name__ == '__main__':
 
 
 	zoo = zookeeper(address)
+	print(zoo)
+
 	if force:
 		zoo.set_force()
 
