@@ -62,7 +62,7 @@ class arcus_node:
 
 	def do_arcus_command(self, command, timeout=0.2):
 		tn = telnetlib.Telnet(self.ip, self.port)
-		tn.write(bytes(command + '\n', 'utf-8'))
+		tn.write(bytes(command + '\r\n', 'utf-8'))
 
 		if command[0:5] == 'scrub' or command[0:5] == 'flush':
 			message = 'OK'
@@ -72,7 +72,7 @@ class arcus_node:
 		result = tn.read_until(bytes(message, 'utf-8'), timeout)
 
 		result = result.decode('utf-8')
-		tn.write(bytes('quit\n', 'utf-8'))
+		tn.write(bytes('quit\r\n', 'utf-8'))
 		tn.close()
 		return result
 

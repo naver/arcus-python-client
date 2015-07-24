@@ -365,7 +365,7 @@ class ArcusLocator:
 		idx = bisect.bisect(self.node_list, ArcusPoint(hash, None))
 
 		# roll over
-		if idx > len(self.node_list):
+		if idx >= len(self.node_list):
 			idx = 0
 
 		point = self.node_list[idx]
