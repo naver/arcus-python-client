@@ -36,10 +36,10 @@ USER=''
 
 
 
-def do_ssh_command(addr, command):
+def do_ssh_command(addr, command, tmout):
 	ssh = paramiko.SSHClient()
 	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-	ssh.connect(addr)
+	ssh.connect(addr, timeout=tmout)
 
 	stdin, stdout, stderr = ssh.exec_command(command)
 	for line in stdout.readlines():
@@ -163,7 +163,7 @@ if __name__ == '__main__':
 		for node in lists:
 			if prev_ip != node.ip: # run once per machine
 				print ('## run ssh command, [%s] %s' % (node.ip, options.ssh_command))
-				do_ssh_command(node.ip, options.ssh_command)
+				do_ssh_command(node.ip, options.ssh_command, timeout)
 				prev_ip = node.ip
 
 	if options.command:
@@ -180,7 +180,7 @@ if __name__ == '__main__':
 		if options.node:
 			print('===================================================================================')
 			print ('[%s] system memory' % lists[0].ip)
-			do_ssh_command(lists[0].ip, 'free') # run once
+			do_ssh_command(lists[0].ip, 'free', timeout) # run once
 			print('-----------------------------------------------------------------------------------')
 
 
@@ -190,6 +190,9 @@ if __name__ == '__main__':
 		re_maxconns = re.compile("maxconns ([0-9]+)")
 
 		last_node = None
+
+		grand_total_used = 0
+		grand_total_limit = 0
 
 		total_used = 0
 		total_limit = 0
@@ -202,7 +205,7 @@ if __name__ == '__main__':
 
 					print('===================================================================================')
 					print ('[%s] system memory' % node.ip)
-					do_ssh_command(node.ip, 'free') # run every server
+					do_ssh_command(node.ip, 'free', timeout) # run every server
 					last_node = node.ip
 					print('-----------------------------------------------------------------------------------')
 
@@ -232,6 +235,10 @@ if __name__ == '__main__':
 				total_used += used
 				total_limit += limit
 
+				grand_total_used += used
+				grand_total_limit += limit
+				
+
 			except Exception as e:
 				print ('%s\t\tFAILED!!' % (node))
 				print(e)
@@ -240,6 +247,8 @@ if __name__ == '__main__':
 
 		print ('TOTAL MEM: (%d/%d) %f%%' % (total_used, total_limit, total_used/total_limit*100))
 
+		if options.service:
+			print ('GRAND TOTAL MEM: (%d/%d) %f%%' % (grand_total_used, grand_total_limit, grand_total_used/grand_total_limit*100))
 
 
 	if options.info and not options.service and not options.node: # brief report per cloud
