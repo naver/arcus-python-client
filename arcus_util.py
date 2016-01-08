@@ -31,7 +31,7 @@ class arcus_cache:
 		self.node = []
 		self.active_node = []
 		self.dead_node = []
-		self.meta = ('', None)
+		self.meta = ['', None]
 
 	def __repr__(self):
 		repr = '[Service Code: %s] (zk:%s)\n (node) %s\n (active) %s\n (dead) %s' % (self.code, self.zk_addr, self.node, self.active_node, self.dead_node)
@@ -105,6 +105,15 @@ class zookeeper:
 		data, stat = self.zk.get(path)
 		children = self.zk.get_children(path)
 		return data, stat, children
+
+	def zk_children(self, path):
+		return self.zk.get_children(path)
+
+	def zk_children_if_exists(self, path):
+		if self.zk_exists(path) == False:
+			return []
+
+		return self.zk_children(path)
 	
 	def zk_exists(self, path):
 		if self.zk.exists(path) == None:
@@ -141,14 +150,21 @@ class zookeeper:
 				raise NoNodeError
 
 	def get_arcus_cache_list(self):
-		children = self.zk.get_children('/arcus/cache_list/')
+		children = self.zk_children_if_exists('/arcus/cache_list/')
+		children += self.zk_children_if_exists('/arcus_repl/cache_list/')
+
 		return children
 
 	def get_arcus_node_of_code(self, code, server):
-		children = self.zk.get_children('/arcus/cache_list/' + code)
-
+		# repl case
+		children = self.zk_children_if_exists('/arcus_repl/cache_list/' + code)
+		children += self.zk_children_if_exists('/arcus/cache_list/' + code)
 		ret = []
 		for child in children:
+			tmp = child.split('^', 2) # remove repl info
+			if len(tmp) == 3:
+				child = tmp[2]
+
 			addr, name = child.split('-', 1)
 			ip, port = addr.split(':', 1)
 
@@ -159,17 +175,27 @@ class zookeeper:
 			node.name = name
 			ret.append(node)
 
+
 		return ret
 
 	def get_arcus_node_of_server(self, addr):
 		ip = socket.gethostbyname(addr)
-		children = self.zk.get_children('/arcus/cache_server_mapping/')
 
+		children = self.zk_children_if_exists('/arcus_repl/cache_server_mapping/')
+		children += self.zk_children_if_exists('/arcus/cache_server_mapping/')
 		ret = []
 		for child in children:
 			l = len(ip)
 			if child[:l] == ip:
-				code = self.zk.get_children('/arcus/cache_server_mapping/' + child)
+				code = self.zk_children_if_exists('/arcus_repl/cache_server_mapping/' + child)
+				if len(code) == 0:
+					code = self.zk_children_if_exists('/arcus/cache_server_mapping/' + child)
+
+				code = code[0]
+
+				tmp = code.split('^') # remove repl info
+				code = tmp[0]
+				
 				try:
 					ip, port = child.split(':')
 				except ValueError:
@@ -177,18 +203,32 @@ class zookeeper:
 					continue
 
 				node = arcus_node(ip, port)
-				node.code = code[0]
+				node.code = code
 				ret.append(node)
+
 		return ret
 
 	def get_arcus_node_all(self):
-		children = self.zk.get_children('/arcus/cache_server_mapping/')
+		children = self.zk_children_if_exists('/arcus_repl/cache_server_mapping/')
+		children += self.zk_children_if_exists('/arcus/cache_server_mapping/')
 
 		ret = []
 
 		#print(children)
 		for child in children:
-			code = self.zk.get_children('/arcus/cache_server_mapping/' + child)
+			code = self.zk_children_if_exists('/arcus_repl/cache_server_mapping/' + child)
+			if len(code) == 0:
+				code = self.zk_children_if_exists('/arcus/cache_server_mapping/' + child)
+
+			if len(code) == 0:
+				print('no childrens in cache_server_mapping error: %s' % child)
+				print(code)
+				continue
+
+			code = code[0]
+
+			tmp = code.split('^') # remove repl info
+			code = tmp[0]
 
 			try:
 				ip, port = child.split(':')
@@ -197,13 +237,9 @@ class zookeeper:
 				ip = child
 				port = '0'
 
-			if len(code) == 0:
-				print('no childrens in cache_server_mapping error: %s' % child)
-				print(code)
-				continue
 
 			node = arcus_node(ip, port)
-			node.code = code[0]
+			node.code = code
 			ret.append(node)
 
 		return ret
@@ -220,7 +256,7 @@ class zookeeper:
 
 		for child in children:
 			data, stat, children = self.zk_read('/arcus/meta/' + child)
-			ret[child] = (data.decode('utf-8'), stat)
+			ret[child] = [data.decode('utf-8'), stat]
 
 		return ret
 
@@ -245,9 +281,14 @@ class zookeeper:
 		print('# done')
 
 		for code, cache in self.arcus_cache_map.items():
-			children = self.zk.get_children('/arcus/cache_list/' + code)
-
+			#repl case
+			children = self.zk_children_if_exists('/arcus_repl/cache_list/' + code)
+			children += self.zk_children_if_exists('/arcus/cache_list/' + code)
 			for child in children:
+				tmp = child.split('^', 2) # remove repl info
+				if len(tmp) == 3:
+					child = tmp[2]
+
 				addr, name = child.split('-')
 				try:
 					node = self.arcus_node_map[addr]
@@ -259,11 +300,11 @@ class zookeeper:
 			
 				node.active = True
 				cache.active_node.append(node)
+
 			
 			for node in cache.node:
 				if node.active == False:
 					cache.dead_node.append(node)
-
 
 			if code in meta:
 				cache.meta = meta[code]
@@ -322,7 +363,8 @@ class zookeeper:
 	def watch(self, callback):
 		self.callback = callback
 		for code, cache in self.arcus_cache_map.items():
-			children = self.zk.get_children('/arcus/cache_list/' + code, watch=self._callback)
+			children = self.zk_children_if_exists('/arcus/cache_list/' + code, watch=self._callback)
+			children += self.zk_children_if_exists('/arcus_repl/cache_list/' + code, watch=self._callback)
 
 				
 

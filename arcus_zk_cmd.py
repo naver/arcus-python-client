@@ -119,8 +119,8 @@ if __name__ == '__main__':
 		elif command == 'add_node' and service and node:
 			assert port != ''
 
-			print ('create /arcus/service_code_mapping/%s/%s:%s' % (service, ip, port))
-			zoo.zk_create('/arcus/service_code_mapping/%s/%s:%s' % (service, ip, port), name)
+			#print ('create /arcus/service_code_mapping/%s/%s:%s' % (service, ip, port))
+			#zoo.zk_create('/arcus/service_code_mapping/%s/%s:%s' % (service, ip, port), name)
 
 			print ('create /arcus/cache_server_mapping/%s:%s' % (ip, port))
 			zoo.zk_create('/arcus/cache_server_mapping/%s:%s' % (ip, port), name)

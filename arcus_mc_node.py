@@ -1061,9 +1061,7 @@ class EflagFilter:
 			
 		# ( dummy, lhs_offset, dummy, bit_op, bit_rhs, comp_op, comp_rhs )
 		g = match.groups()
-		g.remove(g[0]) # ( lhs_offset, dummy, bit_op, bit_rhs, comp_op, comp_rhs )
-		g.remove(g[1]) # ( lhs_offset, bit_op, bit_rhs, comp_op, comp_rhs )
-		self.lhs_offset, self.bit_op, self.bit_rhs, self.comp_op, self.comp_rhs = g
+		dummy_1, self.lhs_offset, dummy_2, self.bit_op, self.bit_rhs, self.comp_op, self.comp_rhs = g
 		
 		if self.lhs_offset == None:
 			self.lhs_offset = 0
