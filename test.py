@@ -39,7 +39,8 @@ client = Arcus(ArcusLocator(ArcusMCNodeAllocator(ArcusTranscoder())))
 print('### connect to client')
 client.connect(sys.argv[1], sys.argv[2])
 
-'''
+timeout = 10
+
 #####################################################################################################
 #
 # TEST 1: primitive type
@@ -183,7 +184,6 @@ ret = client.sop_exist('test:set_1', 'item 100')
 print(ret.get_result())
 assert ret.get_result() == False
 
-'''
 
 
 #####################################################################################################
@@ -202,7 +202,6 @@ def itoh(i):
 	
 
 
-'''
 # int key
 ret = client.bop_create('test:btree_int', ArcusTranscoder.FLAG_INTEGER, timeout)
 print (ret.get_result())
@@ -281,7 +280,6 @@ for i in range(200, 401):
 
 	assert result[i] == (itoh(i), i)
 
-'''
 
 
 
@@ -321,10 +319,8 @@ for i in range(2000, 3000):
 
 
 
-'''
 ret = client.bop_mget(['test:btree_1', 'test:btree_2', 'test:btree_3', 'test:btree_4', 'test:btree_5'], (500, 2500))
 print(ret.get_result())
-'''
 
 
 ret = client.bop_smget(['test:btree_1', 'test:btree_2', 'test:btree_3', 'test:btree_4', 'test:btree_5'], (500, 2500))
