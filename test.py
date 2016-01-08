@@ -39,7 +39,6 @@ client = Arcus(ArcusLocator(ArcusMCNodeAllocator(ArcusTranscoder())))
 print('### connect to client')
 client.connect(sys.argv[1], sys.argv[2])
 
-timeout = 10
 
 #####################################################################################################
 #

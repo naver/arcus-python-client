@@ -307,6 +307,7 @@ class ArcusLocator:
 		self.addr_node_map = {}
 		self.node_list = []
 		self.zk.stop()
+		self.node_allocator.join()
 
 	def hash_nodes(self, children):
 		arcuslog (self, 'hash_nodes with children: ', children)
