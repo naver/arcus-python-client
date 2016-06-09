@@ -63,6 +63,7 @@ if __name__ == '__main__':
 	parser.add_option('', '--all_node', dest='all_node', default=False, help='select all node', action='store_true')
 	parser.add_option('', '--all_server', dest='all_server', default=False, help='select all server', action='store_true')
 	parser.add_option('-t', '--timeout', dest='timeout', default='200', help='arcus command timeout (msec)')
+	parser.add_option('-p', '--prefix', dest='prefix', help='show arcus prefix stats')
 
 	(options, args) = parser.parse_args()
 
@@ -374,3 +375,83 @@ if __name__ == '__main__':
 
 			script_fh.write(start_script)
 
+	if options.prefix:
+
+		def parse_stats(tokens):
+			stats = {}
+			for i in range(0, len(tokens), 2):
+				key, value = tokens[i], int(tokens[i+1])
+				stats[key] = value
+			return stats
+
+		def print_stats(prefix, stats, keys, is_total=False):
+			heading = "PREFIX %-10s " % (prefix)
+			result = heading
+			for key in keys:
+				if key == 'time' and is_total:
+					continue
+				if key in ['tsz', 'lcs', 'scs', 'bcs', 'bps', 'pfs', 'gps']:
+					result += "\n" + " "*(len(heading))
+				if key in ['bps', 'pfs']:
+					result += " "*12
+				try:
+					result += "%s %7d "% (key, stats[key])
+				except KeyError:
+					# Some version of arcus-memcached does not print 'inc' and 'dec'
+					pass
+			print(result)
+
+		def add_stats(total, prefix, stats, keys):
+			if prefix not in total:
+				total[prefix] = {}
+			for key in keys:
+				try:
+					total[prefix][key] = total[prefix].get(key, 0) + stats[key]
+				except KeyError:
+					# Some version of arcus-memcached does not print 'inc' and 'dec'
+					pass
+
+		def collect_stats(node, prefix, command, keys, total):
+			try:
+				result = node.do_arcus_command(command, timeout)
+			except Exception as e:
+				print('%s\t\tFAILED!!' % (node))
+				print(e)
+				return None
+
+			match_count = 0
+			for line in result.splitlines():
+				if not line.startswith("PREFIX"):
+					continue
+				if line.startswith("PREFIX %s" % prefix) or prefix == '<all>':
+					tokens = line.split()
+					current_prefix = tokens[1]
+					current_stats = parse_stats(tokens[2:])
+					print_stats(current_prefix, current_stats, keys)
+					add_stats(total, current_prefix, current_stats, keys)
+					match_count += 1
+			if match_count == 0:
+				print('(no result from %s)' % command)
+			print('')
+
+		prefixes_keys = ['itm', 'kitm', 'litm', 'sitm', 'bitm',
+				         'tsz', 'ktsz', 'ltsz', 'stsz', 'btsz', 'time']
+		dump_keys = ['get', 'hit', 'set', 'del', 'inc', 'dec',
+				     'lcs', 'lis', 'lih', 'lds', 'ldh', 'lgs', 'lgh',
+				     'scs', 'sis', 'sih', 'sds', 'sdh', 'sgs', 'sgh', 'ses', 'seh',
+				     'bcs', 'bis', 'bih', 'bus', 'buh', 'bds', 'bdh',
+				     'bps', 'bph', 'bms', 'bmh', 'bgs', 'bgh', 'bns', 'bnh',
+				     'pfs', 'pfh', 'pgs', 'pgh',
+				     'gps', 'gph', 'gas', 'sas']
+		prefixes_total = {}
+		dump_total = {}
+		for node in lists:
+			print(node)
+			collect_stats(node, options.prefix, 'stats prefixes', prefixes_keys, prefixes_total)
+			collect_stats(node, options.prefix, 'stats detail dump', dump_keys, dump_total)
+		print('[Total]')
+		for prefix in sorted(prefixes_total):
+			print_stats(prefix, prefixes_total[prefix], prefixes_keys, is_total=True)
+		print('')
+		for prefix in sorted(dump_total):
+			print_stats(prefix, dump_total[prefix], dump_keys, is_total=True)
