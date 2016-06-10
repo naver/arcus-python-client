@@ -21,6 +21,8 @@
 import sys,os,socket,re
 
 from optparse import OptionParser
+from collections import OrderedDict
+
 import paramiko
 
 from arcus_util import zookeeper
@@ -63,7 +65,7 @@ if __name__ == '__main__':
 	parser.add_option('', '--all_node', dest='all_node', default=False, help='select all node', action='store_true')
 	parser.add_option('', '--all_server', dest='all_server', default=False, help='select all server', action='store_true')
 	parser.add_option('-t', '--timeout', dest='timeout', default='200', help='arcus command timeout (msec)')
-	parser.add_option('-p', '--prefix', dest='prefix', help='show arcus prefix stats')
+	parser.add_option('-p', '--prefix_stats', dest='prefix', help='show arcus prefix stats')
 
 	(options, args) = parser.parse_args()
 
@@ -377,41 +379,45 @@ if __name__ == '__main__':
 
 	if options.prefix:
 
-		def parse_stats(tokens):
-			stats = {}
-			for i in range(0, len(tokens), 2):
-				key, value = tokens[i], int(tokens[i+1])
-				stats[key] = value
-			return stats
+		def print_stats(prefix, stats, is_total=False):
+			result = ""
+			printed_count = 0
+			for current_prefix, prefix_stats in stats.items():
+				if current_prefix.startswith(prefix) or prefix == '*':
+					printed_count += 1
+					heading = "PREFIX %-10s " % (current_prefix)
+					result += heading
+					for key, value in prefix_stats.items():
+						if key == 'time' and is_total:
+							continue
+						if key in ['tsz', 'lcs', 'scs', 'bcs', 'bps', 'pfs', 'gps']:
+							result += "\n" + " "*(len(heading))
+						if key in ['bps', 'pfs']:
+							result += " "*12
+						try:
+							result += "%s %7d "% (key, value)
+						except KeyError:
+							# Some version of arcus-memcached does not print 'inc' and 'dec'
+							pass
+					result += "\n"
+			if printed_count > 0:
+				print(result)
+			else:
+				print("(no result)")
 
-		def print_stats(prefix, stats, keys, is_total=False):
-			heading = "PREFIX %-10s " % (prefix)
-			result = heading
-			for key in keys:
-				if key == 'time' and is_total:
-					continue
-				if key in ['tsz', 'lcs', 'scs', 'bcs', 'bps', 'pfs', 'gps']:
-					result += "\n" + " "*(len(heading))
-				if key in ['bps', 'pfs']:
-					result += " "*12
-				try:
-					result += "%s %7d "% (key, stats[key])
-				except KeyError:
-					# Some version of arcus-memcached does not print 'inc' and 'dec'
-					pass
-			print(result)
 
-		def add_stats(total, prefix, stats, keys):
-			if prefix not in total:
-				total[prefix] = {}
-			for key in keys:
-				try:
-					total[prefix][key] = total[prefix].get(key, 0) + stats[key]
-				except KeyError:
-					# Some version of arcus-memcached does not print 'inc' and 'dec'
-					pass
+		def merge_stats(total_stats, node_stats):
+			for prefix, stats in node_stats.items():
+				if prefix not in total_stats:
+					total_stats[prefix] = OrderedDict()
+				for key, value in node_stats[prefix].items():
+					total_stats[prefix][key] = total_stats[prefix].get(key, 0) + value
 
-		def collect_stats(node, prefix, command, keys, total):
+		def collect_stats(node, command):
+			"""
+			Returns:
+			{ 'prefix1': OrderedDict[('key1', value1), ('key2', value2)...], ... }
+			"""
 			try:
 				result = node.do_arcus_command(command, timeout)
 			except Exception as e:
@@ -419,39 +425,40 @@ if __name__ == '__main__':
 				print(e)
 				return None
 
-			match_count = 0
+			node_stats = {}
+
 			for line in result.splitlines():
 				if not line.startswith("PREFIX"):
 					continue
-				if line.startswith("PREFIX %s" % prefix) or prefix == '<all>':
-					tokens = line.split()
-					current_prefix = tokens[1]
-					current_stats = parse_stats(tokens[2:])
-					print_stats(current_prefix, current_stats, keys)
-					add_stats(total, current_prefix, current_stats, keys)
-					match_count += 1
-			if match_count == 0:
-				print('(no result from %s)' % command)
-			print('')
 
-		prefixes_keys = ['itm', 'kitm', 'litm', 'sitm', 'bitm',
-				         'tsz', 'ktsz', 'ltsz', 'stsz', 'btsz', 'time']
-		dump_keys = ['get', 'hit', 'set', 'del', 'inc', 'dec',
-				     'lcs', 'lis', 'lih', 'lds', 'ldh', 'lgs', 'lgh',
-				     'scs', 'sis', 'sih', 'sds', 'sdh', 'sgs', 'sgh', 'ses', 'seh',
-				     'bcs', 'bis', 'bih', 'bus', 'buh', 'bds', 'bdh',
-				     'bps', 'bph', 'bms', 'bmh', 'bgs', 'bgh', 'bns', 'bnh',
-				     'pfs', 'pfh', 'pgs', 'pgh',
-				     'gps', 'gph', 'gas', 'sas']
+				tokens = line.split()
+				current_prefix = tokens[1]
+
+				prefix_stats = OrderedDict()
+
+				for i in range(2, len(tokens), 2):
+					key = tokens[i]
+					value = int(tokens[i+1])
+					prefix_stats[key] = value
+
+				node_stats[current_prefix] = prefix_stats
+
+			return node_stats
+
 		prefixes_total = {}
-		dump_total = {}
+		detail_total = {}
+
 		for node in lists:
 			print(node)
-			collect_stats(node, options.prefix, 'stats prefixes', prefixes_keys, prefixes_total)
-			collect_stats(node, options.prefix, 'stats detail dump', dump_keys, dump_total)
+
+			node_stats = collect_stats(node, 'stats prefixes')
+			print_stats(options.prefix, node_stats)
+			merge_stats(prefixes_total, node_stats)
+
+			node_stats = collect_stats(node, 'stats detail dump')
+			print_stats(options.prefix, node_stats)
+			merge_stats(detail_total, node_stats)
+
 		print('[Total]')
-		for prefix in sorted(prefixes_total):
-			print_stats(prefix, prefixes_total[prefix], prefixes_keys, is_total=True)
-		print('')
-		for prefix in sorted(dump_total):
-			print_stats(prefix, dump_total[prefix], dump_keys, is_total=True)
+		print_stats(options.prefix, prefixes_total, is_total=True)
+		print_stats(options.prefix, detail_total, is_total=True)
