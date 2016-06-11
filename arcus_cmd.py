@@ -383,7 +383,7 @@ if __name__ == '__main__':
 			result = ""
 			printed_count = 0
 			for current_prefix, prefix_stats in stats.items():
-				if current_prefix.startswith(prefix) or prefix == '*':
+				if prefix == 'all' or current_prefix.startswith(prefix) or (current_prefix=='<null>' and prefix=='null'):
 					printed_count += 1
 					heading = "PREFIX %-10s " % (current_prefix)
 					result += heading
