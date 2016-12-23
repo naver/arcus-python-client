@@ -826,13 +826,13 @@ class ArcusList:
 			if isinstance(index, slice):
 				start = index.start
 				stop = index.stop
-				if stop != None:
+				if stop:
 					stop -= 1
+				else:
+					stop = -1
 
 				if start == None:
 					start = 0
-				if stop == None:
-					stop = -1
 
 				try: 
 					return self.arcus.lop_get(self.key, (start, stop)).get_result()
@@ -856,13 +856,15 @@ class ArcusList:
 		if isinstance(index, slice):
 			start = index.start
 			stop = index.stop
-			if stop != None:
+			
+			if stop:
 				stop -= 1
-
+			else:
+				stop = -1
+				
 			if start == None:
 				start = 0
-			if stop == None:
-				stop = -1
+				
 			return self.arcus.lop_delete(self.key, (start, stop)).get_result()
 		else:
 			return self.arcus.lop_delete(self.key, index).get_result()
