@@ -21,6 +21,7 @@ from threading import Lock
 import hashlib, bisect, re
 import struct, datetime, time
 import queue
+import zlib
 
 
 g_log = False
@@ -171,7 +172,7 @@ class ArcusTranscoder:
 
 	def decode(self, flags, buf):
 		if flags & self.FLAG_COMPRESSED != 0:
-			buf = decompress(buf)
+			buf = zlib.decompress(buf, 16+zlib.MAX_WBITS)
 
 		flags = flags & self.FLAG_MASK
 
