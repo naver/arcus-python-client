@@ -598,8 +598,9 @@ class ArcusMCNode:
 	def do_op(self):
 		self.lock.acquire()
 		if len(self.ops) <= 0:
-			assert False
+			arcuslog('ops empty (%s)' % self.addr)
 			self.lock.release()
+			return
 
 		op = self.ops.pop(0)
 		self.lock.release()
