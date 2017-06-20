@@ -22,19 +22,6 @@ import sys, os, time
 import re
 from threading import Lock
 
-
-def do_zookeeper_read(zk, path):
-	#print(path)
-	data, stat = zk.get(path)
-	#print('node info:', data)
-	#print('node stat:', stat)
-
-	children = zk.get_children(path)
-	#print('node children:', children)
-
-	return (data, stat, children)
-
-
 class Manager:
 	def __init__(self):
 		self.zk_list = []
@@ -47,10 +34,20 @@ class Manager:
 		self.lock.acquire()
 		print('# Sync start')
 
+
+		for zk in self.zk_list:
+			zk.sync_map = {} # clear
+
 		for zk1 in self.zk_list:
 			for zk2 in self.zk_list:
 				if zk1 == zk2:
 					continue
+
+				if zk2 in zk1.sync_map:
+					continue
+
+				zk2.sync_map[zk1] = True
+				zk1.sync_map[zk2] = True
 
 				zk1.read()
 				zk2.read()
@@ -111,6 +108,8 @@ class Zookeeper:
 		self.ephemerals = []
 		self.nonephemerals = []
 
+		self.sync_map = {}
+
 		# safety check
 		if '/arcus/cache_list/' not in self.path:
 			print('# invalid zk node path (should include /arcus/cache_list)')
@@ -150,6 +149,13 @@ class Zookeeper:
 
 
 if __name__ == '__main__':
+	# for test
+	if len(sys.argv) == 1:
+		# add here for test like below
+		# sys.argv.append('zk1.addr.com:17288/arcus/cache_list/cloud_1')
+		# sys.argv.append('zk2.addr.com:17288/arcus/cache_list/cloud_2')
+		pass
+
 	if len(sys.argv) < 3:
 		print("usage: python3 zk_sync.py [ZKADDR:PORT/PATH/CLOUD]+")
 		sys.exit(0)
