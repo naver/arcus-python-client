@@ -41,7 +41,7 @@ class Manager:
 
 	def sync(self):
 		self.lock.acquire()
-		log('# Sync start')
+		log('Sync start')
 
 		# read children
 		for zk in self.zk_list:
@@ -56,11 +56,11 @@ class Manager:
 				# make node
 				for node in zk1.ephemerals:
 					if node in zk2.ephemerals:
-						log('# Error: Duplicated ephemeral  %s%s - %s' % (zk1.name, zk1.path, node))
+						log('Error: Duplicated ephemeral  %s%s - %s' % (zk1.name, zk1.path, node))
 						continue
 					
 					if node not in zk2.nonephemerals:
-						log('# Create: %s%s - %s' % (zk1.name, zk1.path, node))
+						log('Create: %s%s - %s' % (zk1.name, zk1.path, node))
 						zk2.create(node, False)
 
 
@@ -78,21 +78,20 @@ class Manager:
 
 				if flag == False:
 					# delete abnormal node
-					log('# Delete: %s%s - %s is abnormal' % (zk1.name, zk1.path, node))
+					log('Delete: %s%s - %s is abnormal' % (zk1.name, zk1.path, node))
 					zk1.delete(node)
 
-		# watch children again
-		for zk in self.zk_list:
-			zk.zk.get_children(zk.path, watch=self.watch_children)
 
-		log('# Sync result')
+		# view result & watch children again
+		log('Sync result')
 		for zk in self.zk_list:
-			zk.read()
-		log('# Sync done')
+			zk.read(self.watch_children)
+
+		log('Sync done')
 		self.lock.release()
 		
 	def watch_children(self, event):
-		log('# watch children called: ', event)
+		log('watch children called: ', event)
 		self.sync()
 
 
@@ -111,20 +110,19 @@ class Zookeeper:
 
 		# safety check
 		if '/arcus/cache_list/' not in self.path:
-			log('# invalid zk node path (should include /arcus/cache_list)')
+			log('invalid zk node path (should include /arcus/cache_list)')
 			sys.exit(0)
 
 	def is_ephemeral(self, path):
 		data, stat = self.zk.get(path)
 		return stat.owner_session_id != None
 
-	def read(self):
+	def read(self, watch = None):
 		self.children = []
 		self.ephemerals = []
 		self.nonephemerals = []
 
-		data, stat = self.zk.get(self.path)
-		self.children = self.zk.get_children(self.path)
+		self.children = self.zk.get_children(self.path, watch)
 
 		for child in self.children:
 			if self.is_ephemeral(self.path + '/' + child):
@@ -132,7 +130,7 @@ class Zookeeper:
 			else:
 				self.nonephemerals.append(child)
 					
-		log('# read zk(%s%s)' % (self.name, self.path))
+		log('read zk(%s%s)' % (self.name, self.path))
 		log('\tchildren: ', self.children)
 		log('\tephemeral: ', self.ephemerals)
 		log('\tnonephemeral: ', self.nonephemerals)
@@ -156,7 +154,7 @@ if __name__ == '__main__':
 		pass
 
 	if len(sys.argv) < 3:
-		log("usage: python3 zk_sync.py [ZKADDR:PORT/PATH/CLOUD]+")
+		print("usage: python3 zk_sync.py [ZKADDR:PORT/PATH/CLOUD]+")
 		sys.exit(0)
 
 	mgr = Manager()
@@ -164,6 +162,7 @@ if __name__ == '__main__':
 		zk = Zookeeper(arg)
 		mgr.append(zk)
 	
+	log("sync manager start")
 	mgr.sync()
 
 	# for test
@@ -183,6 +182,6 @@ if __name__ == '__main__':
 		log('running...')
 		time.sleep(10)
 
-	log('done')
+	log('sync manager done')
 
 
