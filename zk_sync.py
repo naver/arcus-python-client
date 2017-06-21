@@ -66,8 +66,8 @@ class Manager:
 
 		# delete old nonehphemeral node
 		for zk1 in self.zk_list:
-			flag = False
 			for node in zk1.nonephemerals:
+				flag = False
 				for zk2 in self.zk_list:
 					if zk1 == zk2:
 						continue
