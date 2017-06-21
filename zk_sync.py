@@ -34,35 +34,15 @@ class Manager:
 		self.lock.acquire()
 		print('# Sync start')
 
-
+		# read children
 		for zk in self.zk_list:
-			zk.sync_map = {} # clear
+			zk.read()
 
+		# make new ehphemeral node
 		for zk1 in self.zk_list:
 			for zk2 in self.zk_list:
 				if zk1 == zk2:
 					continue
-
-				if zk2 in zk1.sync_map:
-					continue
-
-				zk2.sync_map[zk1] = True
-				zk1.sync_map[zk2] = True
-
-				zk1.read()
-				zk2.read()
-
-				# delete abnormal node
-				for node in zk1.nonephemerals:
-					if node not in zk2.ephemerals:
-						print('# Delete: %s%s - %s is abnormal' % (zk1.name, zk1.path, node))
-						zk1.delete(node)
-
-				for node in zk2.nonephemerals:
-					if node not in zk1.ephemerals:
-						print('# Delete: %s%s - %s is abnormal' % (zk2.name, zk2.path, node))
-						zk2.delete(node)
-
 
 				# make node
 				for node in zk1.ephemerals:
@@ -74,22 +54,34 @@ class Manager:
 						print('# Create: %s%s - %s' % (zk1.name, zk1.path, node))
 						zk2.create(node, False)
 
-				for node in zk2.ephemerals:
-					if node in zk1.ephemerals:
-						print('# Error: Duplicated ephemeral  %s%s - %s' % (zk2.name, zk2.path, node))
+
+		# delete old nonehphemeral node
+		for zk1 in self.zk_list:
+			flag = False
+			for node in zk1.nonephemerals:
+				for zk2 in self.zk_list:
+					if zk1 == zk2:
 						continue
-					
-					if node not in zk1.nonephemerals:
-						print('# Create: %s%s - %s' % (zk2.name, zk2.path, node))
-						zk1.create(node, False)
 
-				zk1.zk.get_children(zk1.path, watch=self.watch_children)
-				zk2.zk.get_children(zk2.path, watch=self.watch_children)
+					if node in zk2.ephemerals:
+						flag = True
+						break
 
+				if flag == False:
+					# delete abnormal node
+					print('# Delete: %s%s - %s is abnormal' % (zk1.name, zk1.path, node))
+					zk1.delete(node)
+
+		# watch children again
+		for zk in self.zk_list:
+			zk.zk.get_children(zk.path, watch=self.watch_children)
+
+		print('# Sync result')
+		for zk in self.zk_list:
+			zk.read()
 		print('# Sync done')
 		self.lock.release()
 		
-
 	def watch_children(self, event):
 		print('# watch children called: ', event)
 		self.sync()
@@ -107,8 +99,6 @@ class Zookeeper:
 		self.children = []
 		self.ephemerals = []
 		self.nonephemerals = []
-
-		self.sync_map = {}
 
 		# safety check
 		if '/arcus/cache_list/' not in self.path:
@@ -172,6 +162,11 @@ if __name__ == '__main__':
 	for i in range(0, 10):
 		print('######################################')
 		zk.create('node%d' % i, True)
+		time.sleep(1)
+
+	for i in range(0, 10):
+		print('######################################')
+		zk.delete('node%d' % i)
 		time.sleep(1)
 	'''
 
