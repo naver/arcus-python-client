@@ -21,6 +21,15 @@ import kazoo
 import sys, os, time
 import re
 from threading import Lock
+from datetime import datetime
+
+def log(*arg):
+	str = '[%s] ' % datetime.now()
+
+	for a in arg:
+		str += a.__str__()
+
+	print(str)
 
 class Manager:
 	def __init__(self):
@@ -32,7 +41,7 @@ class Manager:
 
 	def sync(self):
 		self.lock.acquire()
-		print('# Sync start')
+		log('# Sync start')
 
 		# read children
 		for zk in self.zk_list:
@@ -47,11 +56,11 @@ class Manager:
 				# make node
 				for node in zk1.ephemerals:
 					if node in zk2.ephemerals:
-						print('# Error: Duplicated ephemeral  %s%s - %s' % (zk1.name, zk1.path, node))
+						log('# Error: Duplicated ephemeral  %s%s - %s' % (zk1.name, zk1.path, node))
 						continue
 					
 					if node not in zk2.nonephemerals:
-						print('# Create: %s%s - %s' % (zk1.name, zk1.path, node))
+						log('# Create: %s%s - %s' % (zk1.name, zk1.path, node))
 						zk2.create(node, False)
 
 
@@ -69,21 +78,21 @@ class Manager:
 
 				if flag == False:
 					# delete abnormal node
-					print('# Delete: %s%s - %s is abnormal' % (zk1.name, zk1.path, node))
+					log('# Delete: %s%s - %s is abnormal' % (zk1.name, zk1.path, node))
 					zk1.delete(node)
 
 		# watch children again
 		for zk in self.zk_list:
 			zk.zk.get_children(zk.path, watch=self.watch_children)
 
-		print('# Sync result')
+		log('# Sync result')
 		for zk in self.zk_list:
 			zk.read()
-		print('# Sync done')
+		log('# Sync done')
 		self.lock.release()
 		
 	def watch_children(self, event):
-		print('# watch children called: ', event)
+		log('# watch children called: ', event)
 		self.sync()
 
 
@@ -102,7 +111,7 @@ class Zookeeper:
 
 		# safety check
 		if '/arcus/cache_list/' not in self.path:
-			print('# invalid zk node path (should include /arcus/cache_list)')
+			log('# invalid zk node path (should include /arcus/cache_list)')
 			sys.exit(0)
 
 	def is_ephemeral(self, path):
@@ -123,10 +132,10 @@ class Zookeeper:
 			else:
 				self.nonephemerals.append(child)
 					
-		print('# read zk(%s%s)' % (self.name, self.path), self.children)
-		print('\tchildren', self.children)
-		print('\tephemeral', self.ephemerals)
-		print('\tnonephemeral', self.nonephemerals)
+		log('# read zk(%s%s)' % (self.name, self.path))
+		log('\tchildren: ', self.children)
+		log('\tephemeral: ', self.ephemerals)
+		log('\tnonephemeral: ', self.nonephemerals)
 
 	def create(self, path, ephemeral=False):
 		return self.zk.create(self.path + '/' + path, ephemeral = ephemeral)
@@ -147,7 +156,7 @@ if __name__ == '__main__':
 		pass
 
 	if len(sys.argv) < 3:
-		print("usage: python3 zk_sync.py [ZKADDR:PORT/PATH/CLOUD]+")
+		log("usage: python3 zk_sync.py [ZKADDR:PORT/PATH/CLOUD]+")
 		sys.exit(0)
 
 	mgr = Manager()
@@ -160,17 +169,20 @@ if __name__ == '__main__':
 	# for test
 	'''
 	for i in range(0, 10):
-		print('######################################')
+		log('######################################')
 		zk.create('node%d' % i, True)
 		time.sleep(1)
 
 	for i in range(0, 10):
-		print('######################################')
+		log('######################################')
 		zk.delete('node%d' % i)
 		time.sleep(1)
 	'''
 
-	input("Press any key to continue...")
-	print('done')
+	while True:
+		log('running...')
+		time.sleep(10)
+
+	log('done')
 
 
