@@ -118,23 +118,40 @@ class Zookeeper:
 		return stat.owner_session_id != None
 
 	def read(self, watch = None):
-		self.children = []
-		self.ephemerals = []
-		self.nonephemerals = []
+		while True:
+			try: 
+				self.children = []
+				self.ephemerals = []
+				self.nonephemerals = []
 
-		self.children = self.zk.get_children(self.path, watch)
+				self.children = self.zk.get_children(self.path, watch)
 
-		for child in self.children:
-			if self.is_ephemeral(self.path + '/' + child):
-				self.ephemerals.append(child)
-			else:
-				self.nonephemerals.append(child)
-					
-		log('read zk(%s%s)' % (self.name, self.path))
-		log('\tchildren: ', self.children)
-		log('\tephemeral: ', self.ephemerals)
-		log('\tnonephemeral: ', self.nonephemerals)
+				for child in self.children:
+					if self.is_ephemeral(self.path + '/' + child):
+						self.ephemerals.append(child)
+					else:
+						self.nonephemerals.append(child)
+							
+				log('read zk(%s%s)' % (self.name, self.path))
+				log('\tchildren(%d): ' % len(self.children), self.children)
+				log('\tephemeral(%d): ' % len(self.ephemerals), self.ephemerals)
+				log('\tnonephemeral(%d): ' % len(self.nonephemerals), self.nonephemerals)
+			except kazoo.exceptions.NoNodeError as e:
+				log('Exception occur(%s):' % self.name)
+				log(e)
+				log('\tpath:', self.path + '/' + child)
+				log('\tchildren(%d): ' % len(self.children), self.children)
+				log('\tephemeral(%d): ' % len(self.ephemerals), self.ephemerals)
+				log('\tnonephemeral(%d): ' % len(self.nonephemerals), self.nonephemerals)
 
+				children = self.zk.get_children(self.path, watch)
+				log('\treal children(%d): ' % len(children), children)
+
+				log('######### RETRY ###########')
+				continue
+			break
+
+				
 	def create(self, path, ephemeral=False):
 		return self.zk.create(self.path + '/' + path, ephemeral = ephemeral)
 
@@ -149,8 +166,8 @@ if __name__ == '__main__':
 	# for test
 	if len(sys.argv) == 1:
 		# add here for test like below
-		# sys.argv.append('zk1.addr.com:17288/arcus/cache_list/cloud_1')
-		# sys.argv.append('zk2.addr.com:17288/arcus/cache_list/cloud_2')
+		#sys.argv.append('zk1.addr.com:17288/arcus/cache_list/cloud_1')
+		#sys.argv.append('zk2.addr.com:17288/arcus/cache_list/cloud_2')
 		pass
 
 	if len(sys.argv) < 3:
@@ -165,17 +182,34 @@ if __name__ == '__main__':
 	log("sync manager start")
 	mgr.sync()
 
-	# for test
 	'''
-	for i in range(0, 10):
-		log('######################################')
+	print('############## Create start ###############')
+	for i in range(0, 100):
 		zk.create('node%d' % i, True)
-		time.sleep(1)
+	print('############## Create done ###############')
+	time.sleep(1)
 
-	for i in range(0, 10):
-		log('######################################')
+	# for test
+	print('############## Test 1 start ###############')
+	zk.create('nodeA', True)
+	zk.create('nodeB', True)
+	zk.create('nodeC', True)
+	zk.create('nodeD', True)
+	print('############## Test 1 done ###############')
+	time.sleep(1)
+
+	print('############## Test 2 start ###############')
+	zk.delete('nodeA')
+	zk.delete('nodeB')
+	zk.delete('nodeC')
+	zk.delete('nodeD')
+	print('############## Test 2 done ###############')
+	time.sleep(1)
+
+	print('############## Delete start ###############')
+	for i in range(0, 100):
 		zk.delete('node%d' % i)
-		time.sleep(1)
+	print('############## Delete done ###############')
 	'''
 
 	while True:
