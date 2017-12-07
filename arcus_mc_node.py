@@ -26,7 +26,7 @@ from threading import Lock
 import select
 
 from arcus import *
-
+from arcus_poller import get_poller
 
 # Some parts of Connection and ArcusMCNode is came from python memcache module
 class Connection(object):
@@ -1089,7 +1089,7 @@ class EflagFilter:
 class ArcusMCPoll(threading.Thread):
 	def __init__(self, node_allocator):
 		threading.Thread.__init__(self)
-		self.epoll = select.epoll()
+		self.epoll = get_poller()
 		self.sock_node_map = {}
 		self.node_allocator = node_allocator
 
