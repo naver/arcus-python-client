@@ -1,7 +1,7 @@
 #!/usr/local/bin/python3
 
 #
-# arcus-python-client - Arcus python client drvier
+# arcus-python-client - Arcus python client driver
 # Copyright 2014 NAVER Corp.
 #
 # Licensed under the Apache License, Version 2.0 (the "License")
