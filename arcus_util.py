@@ -140,13 +140,6 @@ class zookeeper:
 		except NoNodeError:
 			if self.force == False:
 				raise NoNodeError
-		
-	def zk_delete_tree(self, path):
-		try:
-			self.zk.delete(path, recursive=True)
-		except NoNodeError:
-			if self.force == False:
-				raise NoNodeError
 
 	def zk_update(self, path, value):
 		try:
