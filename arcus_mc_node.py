@@ -98,11 +98,12 @@ class Connection(object):
 		buf = self.buffer
 		while len(buf) < rlen:
 			foo = self.socket.recv(max(rlen - len(buf), 4096))
-			arcuslog(self, 'sock recv: (%d): ' % len(foo), foo)
 
-			buf += foo
 			if foo == None:
 				raise ArcusNodeSocketException('Read %d bytes, expecting %d, read returned 0 length bytes' % ( len(buf), rlen ))
+
+			buf += foo
+			arcuslog(self, 'sock recv: (%d): ' % len(foo), foo)
 
 		self.buffer = buf[rlen:]
 		arcuslog(self, 'recv: ', buf[:rlen])
@@ -605,7 +606,12 @@ class ArcusMCNode:
 		op = self.ops.pop(0)
 		self.lock.release()
 
-		ret = op.callback()
+		try:
+			ret = op.callback()
+		except Exception as e:
+			arcuslog('do op failed: %s' % str(e))
+			ret = e
+
 		op.set_result(ret)
 
 		while self.handle.hasline(): # remaining jobs
@@ -613,7 +619,12 @@ class ArcusMCNode:
 			op = self.ops.pop(0)
 			self.lock.release()
 
-			ret = op.callback()
+			try:
+				ret = op.callback()
+			except Exception as e:
+				arcuslog('do op failed: %s' % str(e))
+				ret = e
+
 			op.set_result(ret)
 
 	def _recv_ok(self):
@@ -703,7 +714,7 @@ class ArcusMCNode:
 
 	def _recv_cas_value(self): 
 		line = self.handle.readline()
-		if line and line[:5] != b'VALUE':
+		if line[:5] != b'VALUE':
 			return None
 
 		resp, rkey, flags, len, cas_id = line.split()
@@ -714,7 +725,7 @@ class ArcusMCNode:
 
 	def _recv_value(self):
 		line = self.handle.readline()
-		if line and line[:5] != b'VALUE':
+		if line[:5] != b'VALUE':
 			return None
 
 		resp, rkey, flags, len = line.split()
@@ -1110,7 +1121,7 @@ class ArcusMCPoll(threading.Thread):
 
 				if event & select.EPOLLHUP:
 					print('EPOLL HUP')
-					epoll.unregister(fileno)
+					self.epoll.unregister(fileno)
 					node = self.sock_node_map[fileno]
 					node.disconnect()
 					del self.sock_node_map[fileno]
@@ -1147,7 +1158,12 @@ class ArcusMCWorker(threading.Thread):
 		
 			arcuslog(self, 'get operation %s(%s:%s) from %s' % (op.request, op.callback, hex(id(op)), op.node))
 			node = op.node
-			node.process_request(op.request)
+
+			try:
+				node.process_request(op.request)
+			except Exception as e:
+				arcuslog(self, 'operation failed: %s' % str(e))
+				op.set_result(e)
 
 
 	def register_node(self, node):

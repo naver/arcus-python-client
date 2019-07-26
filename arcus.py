@@ -311,6 +311,7 @@ class ArcusLocator:
 		self.node_allocator.join()
 
 	def hash_nodes(self, children):
+		#print ('hash_nodes with children %d' % len(children))
 		arcuslog (self, 'hash_nodes with children: ', children)
 
 		self.lock.acquire()
@@ -354,7 +355,7 @@ class ArcusLocator:
 		for node in dead_list:
 			arcuslog(self, 'disconnect node(%s)' % node.addr)
 			node.disconnect()
-			del self.addr_node_map[addr]
+			del self.addr_node_map[node.addr]
 		
 		self.lock.release()
 
@@ -607,6 +608,9 @@ class ArcusOperation:
 
 		if result == self and self.invalid == True:
 			raise ArcusNodeConnectionException('current async result is unavailable because Arcus node is disconnected now')
+
+		if isinstance(result, Exception):
+			raise result
 
 		self.result = result
 		return result
