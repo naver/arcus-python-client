@@ -190,14 +190,10 @@ assert ret.get_result() == False
 # TEST 4: btree
 #
 #####################################################################################################
+# int to hex format:"0xFFFF"
 def itoh(i):
 	h = hex(i)
-	if len(h) % 2 == 1:
-		h = '0x0%s' % h[2:].upper()
-	else:
-		h = '0x%s' % h[2:].upper()
-
-	return h
+	return '0x'+('0'*(6-len(h)))+h[2:].upper()
 	
 
 
