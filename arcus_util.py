@@ -359,6 +359,10 @@ class zookeeper:
 
 		children = []
 		for child in child_list:
+			tmp = child.split('^', 2) # remove repl info
+			if len(tmp) == 3:
+				child = tmp[2]
+
 			addr = child.split('-')[0]
 			children.append(addr)
 		
